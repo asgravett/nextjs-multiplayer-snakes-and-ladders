@@ -1,11 +1,22 @@
 'use client';
 
-export default function DiceRoller({ onRoll }: { onRoll: () => void }) {
+export default function DiceRoller({
+  onRoll,
+  disabled = false,
+}: {
+  onRoll: () => void;
+  disabled?: boolean;
+}) {
   return (
     <div className="absolute -bottom-20 left-1/2 -translate-x-1/2">
       <button
         onClick={onRoll}
-        className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-400"
+        disabled={disabled}
+        className={`px-6 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-400 transition-colors ${
+          disabled
+            ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
+            : 'bg-blue-600 text-white hover:bg-blue-700'
+        }`}
         aria-label="Roll dice"
       >
         Roll Dice 🎲
