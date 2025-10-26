@@ -12,11 +12,22 @@ type GameState = {
   gameStarted: boolean;
 };
 
+type RoomInfo = {
+  id: string;
+  name: string;
+  playerCount: number;
+  maxPlayers: number;
+  gameStarted: boolean;
+};
+
 export function useGameSocket() {
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [lastRoll, setLastRoll] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [myId, setMyId] = useState<string | null>(null);
+  const [currentRoomId, setCurrentRoomId] = useState<string | null>(null);
+  const [availableRooms, setAvailableRooms] = useState<RoomInfo[]>([]);
+  const [isHost, setIsHost] = useState(false);
   const socketRef = useRef<Socket | null>(null);
 
   useEffect(() => {
@@ -28,6 +39,16 @@ export function useGameSocket() {
 
     socket.on('connect', () => {
       setMyId(socket.id || null);
+    });
+
+    socket.on('roomsList', (rooms: RoomInfo[]) => {
+      setAvailableRooms(rooms);
+    });
+
+    socket.on('roomJoined', (data: { roomId: string; room: any }) => {
+      setCurrentRoomId(data.roomId);
+      setIsHost(data.room.host === socket.id);
+      setGameState(data.room.gameState);
     });
 
     socket.on('gameState', (data: GameState) => {
@@ -59,6 +80,8 @@ export function useGameSocket() {
 
     return () => {
       socket.off('connect');
+      socket.off('roomsList');
+      socket.off('roomJoined');
       socket.off('gameState');
       socket.off('diceRolled');
       socket.off('gameWon');
@@ -68,13 +91,39 @@ export function useGameSocket() {
     };
   }, []);
 
+  const createRoom = (roomName: string, playerName: string) => {
+    socketRef.current?.emit('createRoom', { roomName, playerName });
+  };
+
+  const joinRoom = (roomId: string, playerName: string) => {
+    socketRef.current?.emit('joinRoom', { roomId, playerName });
+  };
+
+  const startGame = () => {
+    if (currentRoomId) {
+      socketRef.current?.emit('startGame', { roomId: currentRoomId });
+    }
+  };
+
   const rollDice = () => {
-    const roll = Math.floor(Math.random() * 6) + 1;
-    socketRef.current?.emit('rollDice', { roll });
+    if (currentRoomId) {
+      socketRef.current?.emit('rollDice', { roomId: currentRoomId });
+    }
   };
 
   const resetGame = () => {
-    socketRef.current?.emit('resetGame');
+    if (currentRoomId) {
+      socketRef.current?.emit('resetGame', { roomId: currentRoomId });
+    }
+  };
+
+  const leaveRoom = () => {
+    if (currentRoomId) {
+      socketRef.current?.emit('leaveRoom', { roomId: currentRoomId });
+      setCurrentRoomId(null);
+      setGameState(null);
+      setIsHost(false);
+    }
   };
 
   const isMyTurn = gameState?.currentTurn === myId;
@@ -87,5 +136,12 @@ export function useGameSocket() {
     lastRoll,
     error,
     myId,
+    currentRoomId,
+    availableRooms,
+    isHost,
+    createRoom,
+    joinRoom,
+    startGame,
+    leaveRoom,
   };
 }

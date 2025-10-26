@@ -16,11 +16,11 @@ export function applyRoll(current: number, roll: number): number {
 
 export function getXYFromSquare(square: number): { x: number; y: number } {
   // Square 0 is the starting position (before square 1)
-  if (square === 0) {
-    return { x: 20, y: 570 };
+  if (square === 1) {
+    return { x: 20, y: 560 };
   }
 
-  // Adjust for 1-based indexing (square 1 is at position 0)
+  // Adjust for 1-based indexing (square 1 is at index 0)
   const adjustedSquare = square - 1;
 
   // Calculate row from bottom (0 = bottom row, 9 = top row)
@@ -37,9 +37,9 @@ export function getXYFromSquare(square: number): { x: number; y: number } {
   }
 
   // Convert to pixel coordinates
-  // y: 600 at bottom (row 0), 0 at top (row 9)
+  // y: 560 at bottom (row 0), 20 at top (row 9)
   const x = 20 + col * 60;
-  const y = (9 - row) * 60 + 20;
+  const y = 560 - row * 60;
 
   return { x, y };
 }
