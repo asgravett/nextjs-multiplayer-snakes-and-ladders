@@ -2,45 +2,8 @@
 
 import PlayerPiece from '@/components/PlayerPiece';
 import DiceRoller from '@/components/DiceRoller';
-
-interface Player {
-  id: string;
-  name: string;
-  position: number;
-}
-
-interface GameState {
-  players: { [key: string]: Player };
-  currentTurn: string | null;
-  winner: string | null;
-}
-
-interface GameClientProps {
-  gameState: GameState | null;
-  rollDice: () => void;
-  resetGame: () => void;
-  isMyTurn: boolean;
-  lastRoll: number | null;
-  error: string | null;
-  myId: string;
-}
-
-// Offset positions for multiple players on same square
-const getPlayerOffset = (playerIndex: number, totalOnSquare: number) => {
-  if (totalOnSquare === 1) {
-    return { x: 0, y: 0 };
-  }
-
-  // Positions for 2-4 players in corners of a square
-  const offsets = [
-    { x: -8, y: -8 }, // Top-left
-    { x: 8, y: -8 }, // Top-right
-    { x: -8, y: 8 }, // Bottom-left
-    { x: 8, y: 8 }, // Bottom-right
-  ];
-
-  return offsets[playerIndex] || { x: 0, y: 0 };
-};
+import { Player, GameState } from '@/lib/types';
+import { getPlayerOffset } from '@/lib/logic';
 
 export default function GameClient({
   gameState,
@@ -50,7 +13,15 @@ export default function GameClient({
   lastRoll,
   error,
   myId,
-}: GameClientProps) {
+}: {
+  gameState: GameState | null;
+  rollDice: () => void;
+  resetGame: () => void;
+  isMyTurn: boolean;
+  lastRoll: number | null;
+  error: string | null;
+  myId: string;
+}) {
   if (!gameState) {
     return (
       <div className="absolute top-0 left-0 w-[600px] h-[600px] flex items-center justify-center">

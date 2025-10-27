@@ -1,6 +1,7 @@
 'use client';
 
 import { getXYFromSquare } from '@/lib/logic';
+import { colorMap } from '@/lib/constants';
 
 export default function PlayerPiece({
   position,
@@ -12,13 +13,6 @@ export default function PlayerPiece({
   offset?: { x: number; y: number };
 }) {
   const { x, y } = getXYFromSquare(position);
-
-  const colorMap: Record<string, string> = {
-    red: '#EF4444',
-    blue: '#3B82F6',
-    green: '#10B981',
-    yellow: '#F59E0B',
-  };
 
   return (
     <div

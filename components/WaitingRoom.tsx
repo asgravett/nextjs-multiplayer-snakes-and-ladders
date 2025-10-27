@@ -1,13 +1,6 @@
 'use client';
 
-type Player = { id: string; position: number; name: string };
-type GameState = {
-  players: Record<string, Player>;
-  currentTurn: string | null;
-  playerOrder: string[];
-  winner: string | null;
-  gameStarted: boolean;
-};
+import { GameState } from '@/lib/types';
 
 export default function WaitingRoom({
   gameState,

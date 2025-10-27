@@ -2,14 +2,7 @@
 
 import { useState } from 'react';
 import JoinRoomModal from './JoinRoomModal';
-
-type RoomInfo = {
-  id: string;
-  name: string;
-  playerCount: number;
-  maxPlayers: number;
-  gameStarted: boolean;
-};
+import { RoomInfo } from '@/lib/types';
 
 export default function Lobby({
   availableRooms,

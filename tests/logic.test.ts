@@ -1,4 +1,4 @@
-import { applyRoll, getXYFromSquare } from '@/lib/logic';
+import { applyRoll, getXYFromSquare, getPlayerOffset } from '@/lib/logic';
 
 describe('applyRoll', () => {
   it('moves player correctly within board', () => {
@@ -40,5 +40,43 @@ describe('getXYFromSquare', () => {
 
   it('returns correct position for square 100 (top-left)', () => {
     expect(getXYFromSquare(100)).toEqual({ x: 20, y: 20 });
+  });
+});
+
+describe('getPlayerOffset', () => {
+  it('returns centered position for single player on square', () => {
+    expect(getPlayerOffset(0, 1)).toEqual({ x: 0, y: 0 });
+  });
+
+  it('returns top-left offset for first player when multiple on square', () => {
+    expect(getPlayerOffset(0, 2)).toEqual({ x: -8, y: -8 });
+    expect(getPlayerOffset(0, 3)).toEqual({ x: -8, y: -8 });
+    expect(getPlayerOffset(0, 4)).toEqual({ x: -8, y: -8 });
+  });
+
+  it('returns top-right offset for second player when multiple on square', () => {
+    expect(getPlayerOffset(1, 2)).toEqual({ x: 8, y: -8 });
+    expect(getPlayerOffset(1, 3)).toEqual({ x: 8, y: -8 });
+    expect(getPlayerOffset(1, 4)).toEqual({ x: 8, y: -8 });
+  });
+
+  it('returns bottom-left offset for third player when multiple on square', () => {
+    expect(getPlayerOffset(2, 3)).toEqual({ x: -8, y: 8 });
+    expect(getPlayerOffset(2, 4)).toEqual({ x: -8, y: 8 });
+  });
+
+  it('returns bottom-right offset for fourth player when multiple on square', () => {
+    expect(getPlayerOffset(3, 4)).toEqual({ x: 8, y: 8 });
+  });
+
+  it('handles all four players on same square with correct corner positions', () => {
+    // Player 1: Top-left
+    expect(getPlayerOffset(0, 4)).toEqual({ x: -8, y: -8 });
+    // Player 2: Top-right
+    expect(getPlayerOffset(1, 4)).toEqual({ x: 8, y: -8 });
+    // Player 3: Bottom-left
+    expect(getPlayerOffset(2, 4)).toEqual({ x: -8, y: 8 });
+    // Player 4: Bottom-right
+    expect(getPlayerOffset(3, 4)).toEqual({ x: 8, y: 8 });
   });
 });

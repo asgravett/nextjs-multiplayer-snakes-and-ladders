@@ -1,4 +1,4 @@
-import { snakesAndLadders } from './constants';
+import { snakesAndLadders, playerPieceOffsets } from './constants';
 
 export function applyRoll(current: number, roll: number): number {
   let next = current + roll;
@@ -42,4 +42,13 @@ export function getXYFromSquare(square: number): { x: number; y: number } {
   const y = 560 - row * 60;
 
   return { x, y };
+}
+
+// Offset positions for multiple players on same square
+export function getPlayerOffset(playerIndex: number, totalOnSquare: number) {
+  if (totalOnSquare === 1) {
+    return { x: 0, y: 0 };
+  }
+
+  return playerPieceOffsets[playerIndex] || { x: 0, y: 0 };
 }

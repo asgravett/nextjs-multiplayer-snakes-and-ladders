@@ -1,27 +1,15 @@
 import { createServer } from 'http';
 import { Server } from 'socket.io';
-import { moveSchema } from '../lib/validation';
+import {
+  createRoomSchema,
+  joinRoomSchema,
+  roomIdSchema,
+} from '../lib/validation';
 import { applyRoll } from '../lib/logic';
+import { GameState, Room } from '../lib/types';
 
 const httpServer = createServer();
 const io = new Server(httpServer, { cors: { origin: '*' } });
-
-type Player = { id: string; position: number; name: string };
-type GameState = {
-  players: Record<string, Player>;
-  currentTurn: string | null;
-  playerOrder: string[];
-  winner: string | null;
-  gameStarted: boolean;
-};
-
-type Room = {
-  id: string;
-  name: string;
-  host: string;
-  gameState: GameState;
-  maxPlayers: number;
-};
 
 const rooms = new Map<string, Room>();
 
@@ -76,14 +64,21 @@ io.on('connection', (socket) => {
   );
 
   socket.on('createRoom', (data: { roomName: string; playerName: string }) => {
+    const result = createRoomSchema.safeParse(data);
+    if (!result.success) {
+      socket.emit('error', { message: 'Invalid room data' });
+      return;
+    }
+
+    const { roomName, playerName } = result.data;
     const roomId = `room_${Date.now()}`;
-    const room = createRoom(roomId, data.roomName, socket.id);
+    const room = createRoom(roomId, roomName, socket.id);
 
     socket.join(roomId);
     room.gameState.players[socket.id] = {
       id: socket.id,
       position: 1,
-      name: data.playerName || `Player 1`,
+      name: playerName || `Player 1`,
     };
     room.gameState.playerOrder.push(socket.id);
 
@@ -101,7 +96,14 @@ io.on('connection', (socket) => {
   });
 
   socket.on('joinRoom', (data: { roomId: string; playerName: string }) => {
-    const room = rooms.get(data.roomId);
+    const result = joinRoomSchema.safeParse(data);
+    if (!result.success) {
+      socket.emit('error', { message: 'Invalid join data' });
+      return;
+    }
+
+    const { roomId, playerName } = result.data;
+    const room = rooms.get(roomId);
 
     if (!room) {
       socket.emit('error', { message: 'Room not found' });
@@ -123,7 +125,7 @@ io.on('connection', (socket) => {
     room.gameState.players[socket.id] = {
       id: socket.id,
       position: 1,
-      name: data.playerName || `Player ${playerNumber}`,
+      name: playerName || `Player ${playerNumber}`,
     };
     room.gameState.playerOrder.push(socket.id);
 
@@ -142,7 +144,14 @@ io.on('connection', (socket) => {
   });
 
   socket.on('startGame', (data: { roomId: string }) => {
-    const room = rooms.get(data.roomId);
+    const result = roomIdSchema.safeParse(data);
+    if (!result.success) {
+      socket.emit('error', { message: 'Invalid room ID' });
+      return;
+    }
+
+    const { roomId } = result.data;
+    const room = rooms.get(roomId);
     if (!room) return;
 
     if (room.host !== socket.id) {
@@ -159,7 +168,14 @@ io.on('connection', (socket) => {
   });
 
   socket.on('rollDice', (data: { roomId: string }) => {
-    const room = rooms.get(data.roomId);
+    const result = roomIdSchema.safeParse(data);
+    if (!result.success) {
+      socket.emit('error', { message: 'Invalid room ID' });
+      return;
+    }
+
+    const { roomId } = result.data;
+    const room = rooms.get(roomId);
     if (!room) return;
 
     if (room.gameState.currentTurn !== socket.id) {
@@ -197,7 +213,14 @@ io.on('connection', (socket) => {
   });
 
   socket.on('resetGame', (data: { roomId: string }) => {
-    const room = rooms.get(data.roomId);
+    const result = roomIdSchema.safeParse(data);
+    if (!result.success) {
+      socket.emit('error', { message: 'Invalid room ID' });
+      return;
+    }
+
+    const { roomId } = result.data;
+    const room = rooms.get(roomId);
     if (!room) return;
 
     if (room.host !== socket.id) {
@@ -217,10 +240,17 @@ io.on('connection', (socket) => {
   });
 
   socket.on('leaveRoom', (data: { roomId: string }) => {
-    const room = rooms.get(data.roomId);
+    const result = roomIdSchema.safeParse(data);
+    if (!result.success) {
+      socket.emit('error', { message: 'Invalid room ID' });
+      return;
+    }
+
+    const { roomId } = result.data;
+    const room = rooms.get(roomId);
     if (!room) return;
 
-    socket.leave(data.roomId);
+    socket.leave(roomId);
     delete room.gameState.players[socket.id];
     room.gameState.playerOrder = room.gameState.playerOrder.filter(
       (id) => id !== socket.id
