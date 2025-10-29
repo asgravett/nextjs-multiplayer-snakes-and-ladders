@@ -1,5 +1,5 @@
 // Position and result of landing on the snake or ladder
-export const snakesAndLadders: Record<number, number> = {
+export const SNAKES_AND_LADDERS: Record<number, number> = {
   2: 23,
   4: 68,
   6: 45,
@@ -15,20 +15,30 @@ export const snakesAndLadders: Record<number, number> = {
   84: 58,
   87: 49,
   98: 40,
-};
+} as const;
 
 // Positions for 2-4 players in corners of a square
-export const playerPieceOffsets: Array<{ x: number; y: number }> = [
+export const PLAYER_PIECE_OFFSETS: Array<{ x: number; y: number }> = [
   { x: -8, y: -8 }, // Top-left
   { x: 8, y: -8 }, // Top-right
   { x: -8, y: 8 }, // Bottom-left
   { x: 8, y: 8 }, // Bottom-right
-];
+] as const;
 
 // Colormap for the 4 player pieces
-export const colorMap: Record<string, string> = {
+export const COLOR_MAP: Record<string, string> = {
   red: '#EF4444',
   blue: '#3B82F6',
   green: '#10B981',
   yellow: '#F59E0B',
-};
+} as const;
+
+export const GAME_CONFIG = {
+  MAX_PLAYERS: 4,
+  BOARD_SIZE: 100,
+  DICE_SIDES: 6,
+  STARTING_POSITION: 1,
+  WINNING_POSITION: 100,
+} as const;
+
+export const PLAYER_COLORS = ['red', 'blue', 'green', 'yellow'] as const;

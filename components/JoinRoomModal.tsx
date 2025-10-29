@@ -34,7 +34,7 @@ export default function JoinRoomModal({
       />
 
       {/* Modal */}
-      <div className="relative bg-white rounded-2xl shadow-2xl max-w-md w-full p-8 animate-in zoom-in-95 duration-200">
+      <div className="relative bg-white rounded-2xl shadow-lg max-w-md w-full p-8 animate-in zoom-in-95 duration-200">
         {/* Close Button */}
         <button
           onClick={onClose}
@@ -56,27 +56,27 @@ export default function JoinRoomModal({
 
         {/* Content */}
         <div className="text-center mb-6">
-          <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-4">
+          <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
             <span className="text-3xl">🎮</span>
           </div>
           <h2 className="text-2xl font-bold text-gray-800 mb-2">Join Room</h2>
           <p className="text-gray-600">
-            You're joining{' '}
-            <span className="font-semibold text-purple-600">{roomName}</span>
+            You{`'`}re joining{' '}
+            <span className="font-semibold text-blue-600">{roomName}</span>
           </p>
         </div>
 
         <form onSubmit={handleSubmit}>
           <div className="mb-6">
             <label className="block text-sm font-semibold text-gray-700 mb-2">
-              What's your name?
+              What{`'`}s your name?
             </label>
             <input
               type="text"
               placeholder="Enter your name"
               value={playerName}
               onChange={(e) => setPlayerName(e.target.value)}
-              className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-purple-500 focus:outline-none transition-colors text-lg"
+              className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none transition-colors text-lg text-gray-900 placeholder-gray-400"
               autoFocus
               required
             />
@@ -98,7 +98,7 @@ export default function JoinRoomModal({
               disabled={!playerName.trim()}
               className={`flex-1 px-6 py-3 rounded-lg font-semibold transition-all ${
                 playerName.trim()
-                  ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white hover:from-blue-600 hover:to-purple-700 shadow-md hover:shadow-lg transform hover:scale-105'
+                  ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 shadow-md hover:shadow-lg transform hover:scale-105'
                   : 'bg-gray-300 text-gray-500 cursor-not-allowed'
               }`}
             >

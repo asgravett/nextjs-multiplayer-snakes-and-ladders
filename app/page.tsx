@@ -2,20 +2,20 @@ import Link from 'next/link';
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-linear-to-br from-blue-500 via-purple-500 to-pink-500">
+    <div className="min-h-screen bg-gray-50">
       <div className="container mx-auto px-4 py-16">
         {/* Header */}
         <div className="text-center mb-16">
-          <h1 className="text-6xl font-bold text-white mb-4 drop-shadow-lg">
-            🎲 Snakes and Ladders 🪜
+          <h1 className="text-6xl font-bold text-gray-800 mb-4">
+            🎲 Snakes and Ladders 🐍
           </h1>
-          <p className="text-2xl text-white/90 font-semibold">
+          <p className="text-2xl text-gray-600 font-semibold">
             Multiplayer Online Edition
           </p>
         </div>
 
         {/* Main Content */}
-        <div className="max-w-4xl mx-auto bg-white rounded-2xl shadow-2xl p-8 md:p-12">
+        <div className="max-w-4xl mx-auto bg-white rounded-2xl shadow-lg p-8 md:p-12">
           {/* Introduction */}
           <section className="mb-10">
             <h2 className="text-3xl font-bold text-gray-800 mb-4">
@@ -42,7 +42,7 @@ export default function Home() {
               and navigate the 100-square board filled with surprises.
             </p>
             <div className="grid md:grid-cols-3 gap-4 mt-6">
-              <div className="bg-blue-50 p-4 rounded-lg">
+              <div className="bg-blue-50 p-4 rounded-lg hover:bg-blue-100 transition-colors">
                 <div className="text-3xl mb-2">👥</div>
                 <h3 className="font-semibold text-gray-800 mb-2">
                   Multiplayer
@@ -51,7 +51,7 @@ export default function Home() {
                   Play with 2-4 players in real-time
                 </p>
               </div>
-              <div className="bg-green-50 p-4 rounded-lg">
+              <div className="bg-green-50 p-4 rounded-lg hover:bg-green-100 transition-colors">
                 <div className="text-3xl mb-2">🎮</div>
                 <h3 className="font-semibold text-gray-800 mb-2">
                   Easy to Play
@@ -60,7 +60,7 @@ export default function Home() {
                   Simple rules, endless fun
                 </p>
               </div>
-              <div className="bg-purple-50 p-4 rounded-lg">
+              <div className="bg-purple-50 p-4 rounded-lg hover:bg-purple-100 transition-colors">
                 <div className="text-3xl mb-2">🌐</div>
                 <h3 className="font-semibold text-gray-800 mb-2">
                   Online Rooms
@@ -120,8 +120,8 @@ export default function Home() {
                   <div>
                     <strong className="text-gray-800">Ladders & Snakes:</strong>{' '}
                     Landing on a ladder square lets you climb up to a higher
-                    square. Landing on a snake's head sends you sliding down to
-                    its tail.
+                    square. Landing on a snake{`'`}s head sends you sliding down
+                    to its tail.
                   </div>
                 </li>
                 <li className="flex items-start">
@@ -162,19 +162,11 @@ export default function Home() {
           <div className="text-center">
             <Link
               href="/game"
-              className="inline-block bg-linear-to-r from-blue-500 to-purple-600 text-white text-xl font-bold px-12 py-4 rounded-full hover:from-blue-600 hover:to-purple-700 transform hover:scale-105 transition-all shadow-lg hover:shadow-xl"
+              className="inline-block bg-gradient-to-r from-blue-500 to-blue-600 text-white text-xl font-bold px-12 py-4 rounded-full hover:from-blue-600 hover:to-blue-700 transform hover:scale-105 transition-all shadow-lg hover:shadow-xl"
             >
               🎮 Start Playing Now!
             </Link>
-            <p className="text-gray-600 mt-4">
-              No downloads required • Play in your browser • Free to play
-            </p>
           </div>
-        </div>
-
-        {/* Footer */}
-        <div className="text-center mt-12 text-white/80">
-          <p>Built with Next.js and Socket.IO</p>
         </div>
       </div>
     </div>

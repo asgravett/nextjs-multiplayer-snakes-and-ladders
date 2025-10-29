@@ -2,6 +2,7 @@
 
 import PlayerPiece from '@/components/PlayerPiece';
 import DiceRoller from '@/components/DiceRoller';
+import { PLAYER_COLORS, GAME_CONFIG } from '@/lib/constants';
 import { Player, GameState } from '@/lib/types';
 import { getPlayerOffset } from '@/lib/logic';
 
@@ -59,7 +60,7 @@ export default function GameClient({
           <PlayerPiece
             key={p.id}
             position={p.position}
-            color={['red', 'blue', 'green', 'yellow'][colorIndex % 4]}
+            color={PLAYER_COLORS[colorIndex % GAME_CONFIG.MAX_PLAYERS]}
             offset={offset}
           />
         );

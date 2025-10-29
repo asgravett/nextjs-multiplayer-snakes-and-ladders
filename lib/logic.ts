@@ -1,25 +1,24 @@
-import { snakesAndLadders, playerPieceOffsets } from './constants';
+import {
+  SNAKES_AND_LADDERS,
+  GAME_CONFIG,
+  PLAYER_PIECE_OFFSETS,
+} from './constants';
 
 export function applyRoll(current: number, roll: number): number {
   let next = current + roll;
 
-  if (next >= 100) {
-    return 100;
+  if (next >= GAME_CONFIG.WINNING_POSITION) {
+    return GAME_CONFIG.WINNING_POSITION;
   }
 
-  if (snakesAndLadders[next]) {
-    next = snakesAndLadders[next];
+  if (SNAKES_AND_LADDERS[next]) {
+    next = SNAKES_AND_LADDERS[next];
   }
 
   return next;
 }
 
 export function getXYFromSquare(square: number): { x: number; y: number } {
-  // Square 0 is the starting position (before square 1)
-  if (square === 1) {
-    return { x: 20, y: 560 };
-  }
-
   // Adjust for 1-based indexing (square 1 is at index 0)
   const adjustedSquare = square - 1;
 
@@ -37,18 +36,23 @@ export function getXYFromSquare(square: number): { x: number; y: number } {
   }
 
   // Convert to pixel coordinates
-  // y: 560 at bottom (row 0), 20 at top (row 9)
   const x = 20 + col * 60;
   const y = 560 - row * 60;
 
   return { x, y };
 }
 
-// Offset positions for multiple players on same square
-export function getPlayerOffset(playerIndex: number, totalOnSquare: number) {
+export function getPlayerOffset(
+  playerIndex: number,
+  totalOnSquare: number
+): { x: number; y: number } {
   if (totalOnSquare === 1) {
     return { x: 0, y: 0 };
   }
 
-  return playerPieceOffsets[playerIndex] || { x: 0, y: 0 };
+  return PLAYER_PIECE_OFFSETS[playerIndex] || { x: 0, y: 0 };
+}
+
+export function rollDice(): number {
+  return Math.floor(Math.random() * GAME_CONFIG.DICE_SIDES) + 1;
 }

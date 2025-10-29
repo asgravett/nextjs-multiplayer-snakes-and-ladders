@@ -1,7 +1,7 @@
 'use client';
 
 import { getXYFromSquare } from '@/lib/logic';
-import { colorMap } from '@/lib/constants';
+import { COLOR_MAP } from '@/lib/constants';
 
 export default function PlayerPiece({
   position,
@@ -20,7 +20,7 @@ export default function PlayerPiece({
       style={{
         left: `${x + offset.x}px`,
         top: `${y + offset.y}px`,
-        backgroundColor: colorMap[color] || color,
+        backgroundColor: COLOR_MAP[color] || color,
         transform: 'translate(-50%, -50%)',
         zIndex: 10,
       }}

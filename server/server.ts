@@ -1,24 +1,34 @@
 import { createServer } from 'http';
-import { Server } from 'socket.io';
+import { Server, Socket } from 'socket.io';
 import {
   createRoomSchema,
   joinRoomSchema,
   roomIdSchema,
-} from '../lib/validation';
-import { applyRoll } from '../lib/logic';
-import { GameState, Room } from '../lib/types';
+  validateSocketData,
+  validateRoomExists,
+  validateGameStarted,
+  validateGameNotOver,
+  validatePlayerTurn,
+  validateIsHost,
+  validateRoomNotFull,
+  validateMinimumPlayers,
+} from '@/lib/validation';
+import { applyRoll, rollDice } from '@/lib/logic';
+import { GameState, Room } from '@/lib/types';
+import { GameErrors } from '@/lib/gameErrors';
+import { GAME_CONFIG } from '@/lib/constants';
 
 const httpServer = createServer();
 const io = new Server(httpServer, { cors: { origin: '*' } });
-
 const rooms = new Map<string, Room>();
 
-function createRoom(roomId: string, roomName: string, hostId: string): Room {
+// Helper functions remain the same...
+const createRoom = (roomId: string, roomName: string, hostId: string): Room => {
   const room: Room = {
     id: roomId,
     name: roomName,
     host: hostId,
-    maxPlayers: 4,
+    maxPlayers: GAME_CONFIG.MAX_PLAYERS,
     gameState: {
       players: {},
       currentTurn: null,
@@ -29,295 +39,252 @@ function createRoom(roomId: string, roomName: string, hostId: string): Room {
   };
   rooms.set(roomId, room);
   return room;
-}
+};
 
-function getNextTurn(gameState: GameState): string | null {
+const getNextTurn = (gameState: GameState): string | null => {
   if (gameState.playerOrder.length === 0) return null;
   const currentIndex = gameState.playerOrder.indexOf(
     gameState.currentTurn || ''
   );
   const nextIndex = (currentIndex + 1) % gameState.playerOrder.length;
   return gameState.playerOrder[nextIndex];
-}
+};
 
-function startGame(room: Room) {
+const startGame = (room: Room): void => {
   if (room.gameState.playerOrder.length > 0 && !room.gameState.gameStarted) {
     room.gameState.gameStarted = true;
     room.gameState.currentTurn = room.gameState.playerOrder[0];
     io.to(room.id).emit('gameState', room.gameState);
   }
-}
+};
 
-io.on('connection', (socket) => {
-  console.log('Player connected', socket.id);
+const broadcastRoomsList = (): void => {
+  io.emit('roomsList', getRoomsInfo());
+};
 
-  // Send available rooms
-  socket.emit(
-    'roomsList',
-    Array.from(rooms.values()).map((r) => ({
-      id: r.id,
-      name: r.name,
-      playerCount: Object.keys(r.gameState.players).length,
-      maxPlayers: r.maxPlayers,
-      gameStarted: r.gameState.gameStarted,
-    }))
-  );
+const getRoomsInfo = () => {
+  return Array.from(rooms.values()).map((r) => ({
+    id: r.id,
+    name: r.name,
+    playerCount: Object.keys(r.gameState.players).length,
+    maxPlayers: r.maxPlayers,
+    gameStarted: r.gameState.gameStarted,
+  }));
+};
 
-  socket.on('createRoom', (data: { roomName: string; playerName: string }) => {
-    const result = createRoomSchema.safeParse(data);
-    if (!result.success) {
-      socket.emit('error', { message: 'Invalid room data' });
-      return;
-    }
+// Consistent error handler
+const handleSocketError = (socket: Socket, error: any) => {
+  console.error('Socket error:', error.message);
+  socket.emit('error', {
+    message: error.message,
+    code: error.code || 'UNKNOWN_ERROR',
+  });
+};
 
-    const { roomName, playerName } = result.data;
+// ✅ UPDATED HANDLERS - All use consistent validation and error handling
+const handleCreateRoom = (socket: Socket, data: unknown): void => {
+  try {
+    const { roomName, playerName } = validateSocketData(createRoomSchema, data);
+
     const roomId = `room_${Date.now()}`;
     const room = createRoom(roomId, roomName, socket.id);
 
     socket.join(roomId);
     room.gameState.players[socket.id] = {
       id: socket.id,
-      position: 1,
-      name: playerName || `Player 1`,
+      position: GAME_CONFIG.STARTING_POSITION,
+      name: playerName,
     };
     room.gameState.playerOrder.push(socket.id);
 
     socket.emit('roomJoined', { roomId, room });
-    io.emit(
-      'roomsList',
-      Array.from(rooms.values()).map((r) => ({
-        id: r.id,
-        name: r.name,
-        playerCount: Object.keys(r.gameState.players).length,
-        maxPlayers: r.maxPlayers,
-        gameStarted: r.gameState.gameStarted,
-      }))
-    );
-  });
+    broadcastRoomsList();
+  } catch (error) {
+    handleSocketError(socket, error);
+  }
+};
 
-  socket.on('joinRoom', (data: { roomId: string; playerName: string }) => {
-    const result = joinRoomSchema.safeParse(data);
-    if (!result.success) {
-      socket.emit('error', { message: 'Invalid join data' });
-      return;
-    }
-
-    const { roomId, playerName } = result.data;
+const handleJoinRoom = (socket: Socket, data: unknown): void => {
+  try {
+    const { roomId, playerName } = validateSocketData(joinRoomSchema, data);
     const room = rooms.get(roomId);
 
-    if (!room) {
-      socket.emit('error', { message: 'Room not found' });
-      return;
+    validateRoomExists(room, roomId);
+    validateRoomNotFull(
+      Object.keys(room!.gameState.players).length,
+      room!.maxPlayers
+    );
+
+    if (room!.gameState.gameStarted) {
+      throw GameErrors.GAME_ALREADY_STARTED();
     }
 
-    if (Object.keys(room.gameState.players).length >= room.maxPlayers) {
-      socket.emit('error', { message: 'Room is full' });
-      return;
-    }
-
-    if (room.gameState.gameStarted) {
-      socket.emit('error', { message: 'Game already started' });
-      return;
-    }
-
-    socket.join(data.roomId);
-    const playerNumber = Object.keys(room.gameState.players).length + 1;
-    room.gameState.players[socket.id] = {
+    socket.join(roomId);
+    room!.gameState.players[socket.id] = {
       id: socket.id,
-      position: 1,
-      name: playerName || `Player ${playerNumber}`,
+      position: GAME_CONFIG.STARTING_POSITION,
+      name: playerName,
     };
-    room.gameState.playerOrder.push(socket.id);
+    room!.gameState.playerOrder.push(socket.id);
 
-    socket.emit('roomJoined', { roomId: data.roomId, room });
-    io.to(data.roomId).emit('gameState', room.gameState);
-    io.emit(
-      'roomsList',
-      Array.from(rooms.values()).map((r) => ({
-        id: r.id,
-        name: r.name,
-        playerCount: Object.keys(r.gameState.players).length,
-        maxPlayers: r.maxPlayers,
-        gameStarted: r.gameState.gameStarted,
-      }))
-    );
-  });
+    socket.emit('roomJoined', { roomId, room });
+    io.to(roomId).emit('gameState', room!.gameState);
+    broadcastRoomsList();
+  } catch (error) {
+    handleSocketError(socket, error);
+  }
+};
 
-  socket.on('startGame', (data: { roomId: string }) => {
-    const result = roomIdSchema.safeParse(data);
-    if (!result.success) {
-      socket.emit('error', { message: 'Invalid room ID' });
-      return;
-    }
-
-    const { roomId } = result.data;
+const handleStartGame = (socket: Socket, data: unknown): void => {
+  try {
+    const { roomId } = validateSocketData(roomIdSchema, data);
     const room = rooms.get(roomId);
-    if (!room) return;
 
-    if (room.host !== socket.id) {
-      socket.emit('error', { message: 'Only host can start the game' });
-      return;
+    validateRoomExists(room, roomId);
+    validateIsHost(room!.host, socket.id);
+    validateMinimumPlayers(Object.keys(room!.gameState.players).length);
+
+    if (room!.gameState.gameStarted) {
+      throw GameErrors.GAME_ALREADY_STARTED();
     }
 
-    if (Object.keys(room.gameState.players).length < 2) {
-      socket.emit('error', { message: 'Need at least 2 players to start' });
-      return;
-    }
+    startGame(room!);
+  } catch (error) {
+    handleSocketError(socket, error);
+  }
+};
 
-    startGame(room);
-  });
-
-  socket.on('rollDice', (data: { roomId: string }) => {
-    const result = roomIdSchema.safeParse(data);
-    if (!result.success) {
-      socket.emit('error', { message: 'Invalid room ID' });
-      return;
-    }
-
-    const { roomId } = result.data;
+const handleRollDice = (socket: Socket, data: unknown): void => {
+  try {
+    const { roomId } = validateSocketData(roomIdSchema, data);
     const room = rooms.get(roomId);
-    if (!room) return;
 
-    if (room.gameState.currentTurn !== socket.id) {
-      socket.emit('error', { message: 'Not your turn!' });
-      return;
-    }
+    validateRoomExists(room, roomId);
+    validateGameStarted(room!.gameState.gameStarted);
+    validateGameNotOver(room!.gameState.winner);
+    validatePlayerTurn(room!.gameState.currentTurn, socket.id);
 
-    if (room.gameState.winner) {
-      socket.emit('error', { message: 'Game is over!' });
-      return;
-    }
-
-    const roll = Math.floor(Math.random() * 6) + 1;
-    const currentPosition = room.gameState.players[socket.id].position;
+    const roll = rollDice();
+    const currentPosition = room!.gameState.players[socket.id].position;
     const newPosition = applyRoll(currentPosition, roll);
 
-    room.gameState.players[socket.id].position = newPosition;
+    room!.gameState.players[socket.id].position = newPosition;
 
-    if (newPosition >= 100) {
-      room.gameState.winner = socket.id;
-      io.to(room.id).emit('gameWon', {
-        winner: room.gameState.players[socket.id].name,
+    if (newPosition >= GAME_CONFIG.WINNING_POSITION) {
+      room!.gameState.winner = socket.id;
+      io.to(room!.id).emit('gameWon', {
+        winner: room!.gameState.players[socket.id].name,
         winnerId: socket.id,
       });
     } else {
-      room.gameState.currentTurn = getNextTurn(room.gameState);
+      room!.gameState.currentTurn = getNextTurn(room!.gameState);
     }
 
-    io.to(room.id).emit('gameState', room.gameState);
-    io.to(room.id).emit('diceRolled', {
+    io.to(room!.id).emit('gameState', room!.gameState);
+    io.to(room!.id).emit('diceRolled', {
       playerId: socket.id,
       roll,
       newPosition,
     });
-  });
+  } catch (error) {
+    handleSocketError(socket, error);
+  }
+};
 
-  socket.on('resetGame', (data: { roomId: string }) => {
-    const result = roomIdSchema.safeParse(data);
-    if (!result.success) {
-      socket.emit('error', { message: 'Invalid room ID' });
-      return;
-    }
-
-    const { roomId } = result.data;
+const handleResetGame = (socket: Socket, data: unknown): void => {
+  try {
+    const { roomId } = validateSocketData(roomIdSchema, data);
     const room = rooms.get(roomId);
-    if (!room) return;
 
-    if (room.host !== socket.id) {
-      socket.emit('error', { message: 'Only host can reset the game' });
-      return;
-    }
+    validateRoomExists(room, roomId);
+    validateIsHost(room!.host, socket.id);
 
-    Object.keys(room.gameState.players).forEach((id) => {
-      room.gameState.players[id].position = 1;
+    Object.keys(room!.gameState.players).forEach((id) => {
+      room!.gameState.players[id].position = GAME_CONFIG.STARTING_POSITION;
     });
-    room.gameState.winner = null;
-    room.gameState.currentTurn = room.gameState.playerOrder[0];
-    room.gameState.gameStarted = true;
+    room!.gameState.winner = null;
+    room!.gameState.currentTurn = room!.gameState.playerOrder[0];
+    room!.gameState.gameStarted = true;
 
-    io.to(room.id).emit('gameState', room.gameState);
-    io.to(room.id).emit('gameReset', {});
-  });
+    io.to(room!.id).emit('gameState', room!.gameState);
+    io.to(room!.id).emit('gameReset', {});
+  } catch (error) {
+    handleSocketError(socket, error);
+  }
+};
 
-  socket.on('leaveRoom', (data: { roomId: string }) => {
-    const result = roomIdSchema.safeParse(data);
-    if (!result.success) {
-      socket.emit('error', { message: 'Invalid room ID' });
-      return;
-    }
-
-    const { roomId } = result.data;
+const handleLeaveRoom = (socket: Socket, data: unknown): void => {
+  try {
+    const { roomId } = validateSocketData(roomIdSchema, data);
     const room = rooms.get(roomId);
-    if (!room) return;
+
+    validateRoomExists(room, roomId);
 
     socket.leave(roomId);
-    delete room.gameState.players[socket.id];
-    room.gameState.playerOrder = room.gameState.playerOrder.filter(
+    delete room!.gameState.players[socket.id];
+    room!.gameState.playerOrder = room!.gameState.playerOrder.filter(
       (id) => id !== socket.id
     );
 
-    if (room.gameState.currentTurn === socket.id) {
-      room.gameState.currentTurn = getNextTurn(room.gameState);
+    if (room!.gameState.currentTurn === socket.id) {
+      room!.gameState.currentTurn = getNextTurn(room!.gameState);
     }
 
     // Delete room if empty
-    if (Object.keys(room.gameState.players).length === 0) {
-      rooms.delete(data.roomId);
+    if (Object.keys(room!.gameState.players).length === 0) {
+      rooms.delete(roomId);
     } else {
       // Transfer host if needed
-      if (room.host === socket.id) {
-        room.host = room.gameState.playerOrder[0];
+      if (room!.host === socket.id) {
+        room!.host = room!.gameState.playerOrder[0];
       }
-      io.to(room.id).emit('gameState', room.gameState);
+      io.to(room!.id).emit('gameState', room!.gameState);
     }
 
-    io.emit(
-      'roomsList',
-      Array.from(rooms.values()).map((r) => ({
-        id: r.id,
-        name: r.name,
-        playerCount: Object.keys(r.gameState.players).length,
-        maxPlayers: r.maxPlayers,
-        gameStarted: r.gameState.gameStarted,
-      }))
-    );
-  });
+    broadcastRoomsList();
+  } catch (error) {
+    handleSocketError(socket, error);
+  }
+};
 
-  socket.on('disconnect', () => {
-    // Find and leave all rooms
-    rooms.forEach((room, roomId) => {
-      if (room.gameState.players[socket.id]) {
-        delete room.gameState.players[socket.id];
-        room.gameState.playerOrder = room.gameState.playerOrder.filter(
-          (id) => id !== socket.id
-        );
+const handleDisconnect = (socket: Socket): void => {
+  // Find and leave all rooms
+  rooms.forEach((room, roomId) => {
+    if (room.gameState.players[socket.id]) {
+      delete room.gameState.players[socket.id];
+      room.gameState.playerOrder = room.gameState.playerOrder.filter(
+        (id) => id !== socket.id
+      );
 
-        if (room.gameState.currentTurn === socket.id) {
-          room.gameState.currentTurn = getNextTurn(room.gameState);
-        }
-
-        if (Object.keys(room.gameState.players).length === 0) {
-          rooms.delete(roomId);
-        } else {
-          if (room.host === socket.id) {
-            room.host = room.gameState.playerOrder[0];
-          }
-          io.to(room.id).emit('gameState', room.gameState);
-        }
+      if (room.gameState.currentTurn === socket.id) {
+        room.gameState.currentTurn = getNextTurn(room.gameState);
       }
-    });
 
-    io.emit(
-      'roomsList',
-      Array.from(rooms.values()).map((r) => ({
-        id: r.id,
-        name: r.name,
-        playerCount: Object.keys(r.gameState.players).length,
-        maxPlayers: r.maxPlayers,
-        gameStarted: r.gameState.gameStarted,
-      }))
-    );
+      if (Object.keys(room.gameState.players).length === 0) {
+        rooms.delete(roomId);
+      } else {
+        if (room.host === socket.id) {
+          room.host = room.gameState.playerOrder[0];
+        }
+        io.to(room.id).emit('gameState', room.gameState);
+      }
+    }
   });
+
+  broadcastRoomsList();
+};
+
+io.on('connection', (socket) => {
+  console.log('Player connected', socket.id);
+  socket.emit('roomsList', getRoomsInfo());
+
+  socket.on('createRoom', (data) => handleCreateRoom(socket, data));
+  socket.on('joinRoom', (data) => handleJoinRoom(socket, data));
+  socket.on('startGame', (data) => handleStartGame(socket, data));
+  socket.on('rollDice', (data) => handleRollDice(socket, data));
+  socket.on('resetGame', (data) => handleResetGame(socket, data));
+  socket.on('leaveRoom', (data) => handleLeaveRoom(socket, data));
+  socket.on('disconnect', () => handleDisconnect(socket));
 });
 
 httpServer.listen(4000, () =>
