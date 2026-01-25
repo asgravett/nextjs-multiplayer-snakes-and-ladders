@@ -5,6 +5,7 @@ import DiceRoller from '@/components/DiceRoller';
 import { GameState, Player } from '@/lib/types';
 import { usePlayerAnimation } from '@/hooks/usePlayerAnimation';
 import { useEffect, useRef, useMemo, useState } from 'react';
+import { GAME_CONFIG } from '@/lib/constants';
 
 export default function GameClient({
   gameState,
@@ -23,22 +24,22 @@ export default function GameClient({
   error: string | null;
   myId: string;
 }) {
-  const { animationState, animatePlayerMove } = usePlayerAnimation();
+  const { animationState, animatePlayerMove, cancelAnimation } =
+    usePlayerAnimation();
 
   // Store visual positions separately from game state
-  // This is the KEY fix - we control when visual positions update
   const [visualPositions, setVisualPositions] = useState<
     Record<string, number>
   >({});
   const previousGamePositions = useRef<Record<string, number>>({});
   const pendingAnimations = useRef<Set<string>>(new Set());
+  const isResetting = useRef(false);
 
   // Initialize visual positions for new players
   useEffect(() => {
     if (!gameState) return;
 
     Object.values(gameState.players).forEach((player) => {
-      // Only initialize if we haven't seen this player before
       if (visualPositions[player.id] === undefined) {
         setVisualPositions((prev) => ({
           ...prev,
@@ -49,12 +50,65 @@ export default function GameClient({
     });
   }, [gameState, visualPositions]);
 
-  // Detect position changes and trigger animations
+  // Detect game reset (all players at starting position)
   useEffect(() => {
     if (!gameState) return;
 
+    const allPlayersAtStart = Object.values(gameState.players).every(
+      (player) => player.position === GAME_CONFIG.STARTING_POSITION,
+    );
+
+    const anyPlayerNotAtStartVisually = Object.values(gameState.players).some(
+      (player) => {
+        const visualPos = visualPositions[player.id];
+        return (
+          visualPos !== undefined && visualPos !== GAME_CONFIG.STARTING_POSITION
+        );
+      },
+    );
+
+    // This is a reset - all game positions are at start but visual positions aren't
+    if (
+      allPlayersAtStart &&
+      anyPlayerNotAtStartVisually &&
+      !isResetting.current
+    ) {
+      isResetting.current = true;
+
+      // Cancel any ongoing animations
+      cancelAnimation();
+      pendingAnimations.current.clear();
+
+      // Instantly reset all visual positions (or animate all simultaneously)
+      const newVisualPositions: Record<string, number> = {};
+      Object.values(gameState.players).forEach((player) => {
+        newVisualPositions[player.id] = GAME_CONFIG.STARTING_POSITION;
+        previousGamePositions.current[player.id] =
+          GAME_CONFIG.STARTING_POSITION;
+      });
+
+      // Small delay for visual effect, then snap to start
+      setTimeout(() => {
+        setVisualPositions(newVisualPositions);
+        isResetting.current = false;
+      }, 100);
+    }
+  }, [gameState, visualPositions, cancelAnimation]);
+
+  // Detect position changes and trigger animations (for normal gameplay, not reset)
+  useEffect(() => {
+    if (!gameState || isResetting.current) return;
+
     Object.values(gameState.players).forEach((player) => {
       const previousPosition = previousGamePositions.current[player.id];
+
+      // Skip if this is a reset to starting position (handled above)
+      if (
+        player.position === GAME_CONFIG.STARTING_POSITION &&
+        previousPosition !== undefined
+      ) {
+        return;
+      }
 
       // If position changed and we're not already animating this player
       if (
@@ -81,14 +135,13 @@ export default function GameClient({
         previousGamePositions.current[player.id] = player.position;
       }
     });
-  }, [gameState?.players, animatePlayerMove]);
+  }, [gameState, animatePlayerMove]);
 
   // Create players array with VISUAL positions (not game state positions)
   const playersWithVisualPositions = useMemo(() => {
     if (!gameState) return [];
 
     return Object.values(gameState.players).map((player): Player => {
-      // Always use visual position, which only updates after animation completes
       const position = visualPositions[player.id] ?? player.position;
       return {
         ...player,

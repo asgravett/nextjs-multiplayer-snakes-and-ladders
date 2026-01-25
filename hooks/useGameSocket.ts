@@ -2,23 +2,14 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { io, Socket } from 'socket.io-client';
+import type { GameState, RoomInfo, Room } from '@/lib/types';
+import type {
+  ServerToClientEvents,
+  ClientToServerEvents,
+} from '@/lib/socketEvents';
 
-type Player = { id: string; position: number; name: string };
-type GameState = {
-  players: Record<string, Player>;
-  currentTurn: string | null;
-  playerOrder: string[];
-  winner: string | null;
-  gameStarted: boolean;
-};
-
-type RoomInfo = {
-  id: string;
-  name: string;
-  playerCount: number;
-  maxPlayers: number;
-  gameStarted: boolean;
-};
+// Typed socket
+type TypedSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
 
 export function useGameSocket() {
   const [gameState, setGameState] = useState<GameState | null>(null);
@@ -28,11 +19,11 @@ export function useGameSocket() {
   const [currentRoomId, setCurrentRoomId] = useState<string | null>(null);
   const [availableRooms, setAvailableRooms] = useState<RoomInfo[]>([]);
   const [isHost, setIsHost] = useState(false);
-  const socketRef = useRef<Socket | null>(null);
+  const socketRef = useRef<TypedSocket | null>(null);
 
   useEffect(() => {
-    const socket = io(
-      process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:4000'
+    const socket: TypedSocket = io(
+      process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:4000',
     );
 
     socketRef.current = socket;
@@ -41,30 +32,27 @@ export function useGameSocket() {
       setMyId(socket.id || null);
     });
 
-    socket.on('roomsList', (rooms: RoomInfo[]) => {
+    socket.on('roomsList', (rooms) => {
       setAvailableRooms(rooms);
     });
 
-    socket.on('roomJoined', (data: { roomId: string; room: any }) => {
+    socket.on('roomJoined', (data) => {
       setCurrentRoomId(data.roomId);
       setIsHost(data.room.host === socket.id);
       setGameState(data.room.gameState);
     });
 
-    socket.on('gameState', (data: GameState) => {
+    socket.on('gameState', (data) => {
       setGameState(data);
       setError(null);
     });
 
-    socket.on(
-      'diceRolled',
-      (data: { playerId: string; roll: number; newPosition: number }) => {
-        setLastRoll(data.roll);
-        setTimeout(() => setLastRoll(null), 2000);
-      }
-    );
+    socket.on('diceRolled', (data) => {
+      setLastRoll(data.roll);
+      setTimeout(() => setLastRoll(null), 2000);
+    });
 
-    socket.on('gameWon', (data: { winner: string; winnerId: string }) => {
+    socket.on('gameWon', (data) => {
       console.log(`${data.winner} wins!`);
     });
 
@@ -73,7 +61,7 @@ export function useGameSocket() {
       setError(null);
     });
 
-    socket.on('error', (data: { message: string }) => {
+    socket.on('error', (data) => {
       setError(data.message);
       setTimeout(() => setError(null), 3000);
     });
