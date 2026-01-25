@@ -138,7 +138,7 @@ export default function GamePage() {
         <main className="py-8">
           <div className="flex items-center justify-center">
             <div className="relative bg-white rounded-2xl shadow-lg">
-              <GameBoard />
+              {/* <GameBoard /> */}
               <GameClient
                 gameState={gameState}
                 rollDice={rollDice}

@@ -1,10 +1,10 @@
 'use client';
 
-import PlayerPiece from '@/components/PlayerPiece';
+import CanvasGameBoard from '@/components/CanvasBoardGame';
 import DiceRoller from '@/components/DiceRoller';
-import { PLAYER_COLORS, GAME_CONFIG } from '@/lib/constants';
-import { Player, GameState } from '@/lib/types';
-import { getPlayerOffset } from '@/lib/logic';
+import { GameState, Player } from '@/lib/types';
+import { usePlayerAnimation } from '@/hooks/usePlayerAnimation';
+import { useEffect, useRef, useMemo, useState } from 'react';
 
 export default function GameClient({
   gameState,
@@ -23,94 +23,153 @@ export default function GameClient({
   error: string | null;
   myId: string;
 }) {
+  const { animationState, animatePlayerMove } = usePlayerAnimation();
+
+  // Store visual positions separately from game state
+  // This is the KEY fix - we control when visual positions update
+  const [visualPositions, setVisualPositions] = useState<
+    Record<string, number>
+  >({});
+  const previousGamePositions = useRef<Record<string, number>>({});
+  const pendingAnimations = useRef<Set<string>>(new Set());
+
+  // Initialize visual positions for new players
+  useEffect(() => {
+    if (!gameState) return;
+
+    Object.values(gameState.players).forEach((player) => {
+      // Only initialize if we haven't seen this player before
+      if (visualPositions[player.id] === undefined) {
+        setVisualPositions((prev) => ({
+          ...prev,
+          [player.id]: player.position,
+        }));
+        previousGamePositions.current[player.id] = player.position;
+      }
+    });
+  }, [gameState, visualPositions]);
+
+  // Detect position changes and trigger animations
+  useEffect(() => {
+    if (!gameState) return;
+
+    Object.values(gameState.players).forEach((player) => {
+      const previousPosition = previousGamePositions.current[player.id];
+
+      // If position changed and we're not already animating this player
+      if (
+        previousPosition !== undefined &&
+        previousPosition !== player.position &&
+        !pendingAnimations.current.has(player.id)
+      ) {
+        // Mark as pending animation
+        pendingAnimations.current.add(player.id);
+
+        // Trigger animation from previous to new position
+        animatePlayerMove(player.id, previousPosition, player.position, {
+          onComplete: () => {
+            // Animation done - NOW update visual position
+            setVisualPositions((prev) => ({
+              ...prev,
+              [player.id]: player.position,
+            }));
+            pendingAnimations.current.delete(player.id);
+          },
+        });
+
+        // Update tracking of game position (not visual position)
+        previousGamePositions.current[player.id] = player.position;
+      }
+    });
+  }, [gameState?.players, animatePlayerMove]);
+
+  // Create players array with VISUAL positions (not game state positions)
+  const playersWithVisualPositions = useMemo(() => {
+    if (!gameState) return [];
+
+    return Object.values(gameState.players).map((player): Player => {
+      // Always use visual position, which only updates after animation completes
+      const position = visualPositions[player.id] ?? player.position;
+      return {
+        ...player,
+        position,
+      };
+    });
+  }, [gameState, visualPositions]);
+
   if (!gameState) {
     return (
-      <div className="absolute top-0 left-0 w-[600px] h-[600px] flex items-center justify-center">
-        <p className="text-white text-xl">Connecting...</p>
+      <div className="flex items-center justify-center h-[600px]">
+        <p className="text-gray-500 text-xl">Connecting...</p>
       </div>
     );
   }
 
   const players = Object.values(gameState.players);
 
-  // Group players by position
-  const playersByPosition = players.reduce((acc, player) => {
-    if (!acc[player.position]) {
-      acc[player.position] = [];
-    }
-    acc[player.position].push(player);
-    return acc;
-  }, {} as Record<number, Player[]>);
-
   return (
-    <div className="absolute top-0 left-0 w-[600px] h-[600px] pointer-events-none">
-      {/* Player pieces */}
-      {players.map((p) => {
-        const playersOnSquare = playersByPosition[p.position];
-        const playerIndexOnSquare = playersOnSquare.findIndex(
-          (pl) => pl.id === p.id
-        );
-        const offset = getPlayerOffset(
-          playerIndexOnSquare,
-          playersOnSquare.length
-        );
-        const colorIndex = players.findIndex((pl) => pl.id === p.id);
+    <div className="relative">
+      <CanvasGameBoard
+        players={playersWithVisualPositions}
+        animatingPlayer={animationState?.playerId}
+        animationState={animationState}
+      />
 
-        return (
-          <PlayerPiece
-            key={p.id}
-            position={p.position}
-            color={PLAYER_COLORS[colorIndex % GAME_CONFIG.MAX_PLAYERS]}
-            offset={offset}
-          />
-        );
-      })}
-
-      {/* Game UI */}
-      <div className="pointer-events-auto">
-        {/* Error message */}
+      <div className="mt-6 space-y-4">
         {error && (
-          <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-red-500 text-white px-4 py-2 rounded-lg z-50">
-            {error}
+          <div className="bg-red-50 border-2 border-red-200 text-red-700 px-4 py-3 rounded-lg text-center font-semibold">
+            ⚠️ {error}
           </div>
         )}
 
-        {/* Last roll display */}
         {lastRoll && (
-          <div className="absolute top-16 left-1/2 -translate-x-1/2 bg-white px-6 py-3 rounded-lg shadow-lg text-2xl font-bold z-50">
-            🎲 {lastRoll}
+          <div className="bg-blue-50 border-2 border-blue-200 text-blue-700 px-6 py-3 rounded-lg text-center">
+            <span className="text-2xl font-bold">
+              🎲 You rolled: {lastRoll}
+            </span>
           </div>
         )}
 
-        {/* Turn indicator */}
         {!gameState.winner && (
-          <div className="absolute top-28 left-1/2 -translate-x-1/2 bg-blue-500 text-white px-4 py-2 rounded-lg z-50">
-            {isMyTurn
-              ? 'Your turn!'
-              : `${gameState.players[gameState.currentTurn!]?.name}'s turn`}
+          <div className="bg-gray-50 border-2 border-gray-200 text-gray-700 px-4 py-3 rounded-lg text-center font-semibold">
+            {isMyTurn ? (
+              <span className="text-blue-600">
+                🎯 Your turn!{' '}
+                {animationState?.isAnimating ? 'Moving...' : 'Roll the dice'}
+              </span>
+            ) : (
+              <span>
+                ⏳ Waiting for{' '}
+                <span className="font-bold text-blue-600">
+                  {gameState.players[gameState.currentTurn!]?.name}
+                </span>
+              </span>
+            )}
           </div>
         )}
 
-        {/* Winner message */}
         {gameState.winner && (
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-green-500 text-white px-8 py-6 rounded-lg shadow-xl text-center z-50">
-            <h2 className="text-3xl font-bold mb-4">
+          <div className="bg-green-50 border-2 border-green-200 text-green-700 px-8 py-6 rounded-lg text-center">
+            <h2 className="text-2xl font-bold mb-4">
               🎉 {gameState.players[gameState.winner]?.name} Wins! 🎉
             </h2>
             <button
               onClick={resetGame}
-              className="px-6 py-3 bg-white text-green-500 rounded-lg hover:bg-gray-100 font-semibold"
+              className="px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 font-semibold shadow-md hover:shadow-lg transform hover:scale-105 transition-all"
             >
-              Play Again
+              🎮 Play Again
             </button>
           </div>
         )}
 
-        {/* Dice roller */}
-        <DiceRoller
-          onRoll={rollDice}
-          disabled={!isMyTurn || !!gameState.winner}
-        />
+        <div className="flex justify-center">
+          <DiceRoller
+            onRoll={rollDice}
+            disabled={
+              !isMyTurn || !!gameState.winner || !!animationState?.isAnimating
+            }
+          />
+        </div>
       </div>
     </div>
   );
