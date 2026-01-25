@@ -4,7 +4,7 @@
 import { useRef, useEffect, useCallback } from 'react';
 import { Player } from '@/lib/types';
 import { AnimationState } from '@/hooks/usePlayerAnimation';
-import { GAME_CONFIG } from '@/lib/constants';
+import { useResponsiveCanvas } from '@/hooks/useResponsiveCanvas';
 
 interface CanvasGameBoardProps {
   players: Player[];
@@ -13,9 +13,11 @@ interface CanvasGameBoardProps {
   onAnimationComplete?: () => void;
 }
 
-const BOARD_SIZE = 600;
-const SQUARE_SIZE = BOARD_SIZE / 10;
-const PLAYER_RADIUS = 15;
+// Base sizes (used for scaling calculations)
+const BASE_BOARD_SIZE = 600;
+const BASE_SQUARE_SIZE = BASE_BOARD_SIZE / 10;
+const BASE_PLAYER_RADIUS = 15;
+
 const PLAYER_COLORS = [
   '#FF6B6B',
   '#4ECDC4',
@@ -27,16 +29,28 @@ const PLAYER_COLORS = [
 
 export default function CanvasGameBoard({
   players,
-  animatingPlayer,
   animationState,
-  onAnimationComplete,
 }: CanvasGameBoardProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const animationRef = useRef<number>();
   const boardImageRef = useRef<HTMLImageElement | null>(null);
   const imageLoadedRef = useRef(false);
 
-  // Get the center position of a square on the board
+  // Use responsive canvas dimensions
+  const { width: canvasSize, scale } = useResponsiveCanvas(containerRef, {
+    baseSize: BASE_BOARD_SIZE,
+    minSize: 280,
+    maxSize: 600, // Reduced from 800
+    padding: 16,
+    reserveBottomSpace: 220, // Space for dice roller + status messages
+  });
+
+  // Scaled values
+  const squareSize = BASE_SQUARE_SIZE * scale;
+  const playerRadius = BASE_PLAYER_RADIUS * scale;
+
+  // Get the center position of a square on the board (scaled)
   const getSquarePosition = useCallback(
     (square: number): { x: number; y: number } => {
       if (square < 1) square = 1;
@@ -50,12 +64,12 @@ export default function CanvasGameBoard({
       const col = row % 2 === 0 ? colBase : 9 - colBase;
 
       // Y is inverted (row 0 is at bottom)
-      const x = col * SQUARE_SIZE + SQUARE_SIZE / 2;
-      const y = BOARD_SIZE - (row * SQUARE_SIZE + SQUARE_SIZE / 2);
+      const x = col * squareSize + squareSize / 2;
+      const y = canvasSize - (row * squareSize + squareSize / 2);
 
       return { x, y };
     },
-    []
+    [squareSize, canvasSize],
   );
 
   // Get interpolated position during animation
@@ -76,7 +90,7 @@ export default function CanvasGameBoard({
       // Easing function for smoother animation
       let easedProgress = progress;
       if (phase === 'snake' || phase === 'ladder') {
-        // Use ease-in-out for snake/ladder transitions
+        // Ease in-out for snake/ladder transitions
         easedProgress =
           progress < 0.5
             ? 2 * progress * progress
@@ -88,15 +102,12 @@ export default function CanvasGameBoard({
         y: fromPos.y + (toPos.y - fromPos.y) * easedProgress,
       };
     },
-    [animationState, getSquarePosition]
+    [animationState, getSquarePosition],
   );
 
-  // Get the position to render for a player (handles animation override)
+  // Get render position for a player
   const getPlayerRenderPosition = useCallback(
     (player: Player): { x: number; y: number } => {
-      // If this player is animating, use the animated position
-      // The key fix: during animation, we ignore the player's actual position
-      // and instead interpolate based on animationState
       if (
         animationState &&
         animationState.playerId === player.id &&
@@ -104,45 +115,43 @@ export default function CanvasGameBoard({
       ) {
         return getAnimatedPosition(player.id, player.position);
       }
-
-      // Not animating, use actual position
       return getSquarePosition(player.position);
     },
-    [animationState, getAnimatedPosition, getSquarePosition]
+    [animationState, getAnimatedPosition, getSquarePosition],
   );
 
   // Draw the board
   const drawBoard = useCallback(
     (ctx: CanvasRenderingContext2D) => {
       // Clear canvas
-      ctx.clearRect(0, 0, BOARD_SIZE, BOARD_SIZE);
+      ctx.clearRect(0, 0, canvasSize, canvasSize);
 
       // Draw board background image if loaded
       if (imageLoadedRef.current && boardImageRef.current) {
-        ctx.drawImage(boardImageRef.current, 0, 0, BOARD_SIZE, BOARD_SIZE);
+        ctx.drawImage(boardImageRef.current, 0, 0, canvasSize, canvasSize);
       } else {
         // Fallback: draw a simple grid
         ctx.fillStyle = '#f0f0f0';
-        ctx.fillRect(0, 0, BOARD_SIZE, BOARD_SIZE);
+        ctx.fillRect(0, 0, canvasSize, canvasSize);
 
         for (let i = 0; i < 100; i++) {
           const row = Math.floor(i / 10);
           const colBase = i % 10;
           const col = row % 2 === 0 ? colBase : 9 - colBase;
-          const x = col * SQUARE_SIZE;
-          const y = BOARD_SIZE - (row + 1) * SQUARE_SIZE;
+          const x = col * squareSize;
+          const y = canvasSize - (row + 1) * squareSize;
 
           ctx.fillStyle = (row + colBase) % 2 === 0 ? '#ffffff' : '#e0e0e0';
-          ctx.fillRect(x, y, SQUARE_SIZE, SQUARE_SIZE);
+          ctx.fillRect(x, y, squareSize, squareSize);
 
-          // Draw square number
+          // Draw square number (scaled font)
           ctx.fillStyle = '#666';
-          ctx.font = '12px Arial';
+          ctx.font = `${Math.max(10, 12 * scale)}px Arial`;
           ctx.textAlign = 'center';
           ctx.fillText(
             String(i + 1),
-            x + SQUARE_SIZE / 2,
-            y + SQUARE_SIZE / 2 + 4
+            x + squareSize / 2,
+            y + squareSize / 2 + 4 * scale,
           );
         }
       }
@@ -151,43 +160,47 @@ export default function CanvasGameBoard({
       players.forEach((player, index) => {
         const pos = getPlayerRenderPosition(player);
 
-        // Offset multiple players on same square
+        // Offset multiple players on same square (scaled)
         const playersOnSquare = players.filter((p) => {
           const pPos = getPlayerRenderPosition(p);
-          return Math.abs(pPos.x - pos.x) < 5 && Math.abs(pPos.y - pos.y) < 5;
+          return (
+            Math.abs(pPos.x - pos.x) < 5 * scale &&
+            Math.abs(pPos.y - pos.y) < 5 * scale
+          );
         });
         const playerIndex = playersOnSquare.indexOf(player);
-        const offsetX = (playerIndex % 2) * 20 - 10;
-        const offsetY = Math.floor(playerIndex / 2) * 20 - 10;
+        const offsetX = (playerIndex % 2) * 20 * scale - 10 * scale;
+        const offsetY = Math.floor(playerIndex / 2) * 20 * scale - 10 * scale;
 
         // Draw player piece
         ctx.beginPath();
-        ctx.arc(
-          pos.x + offsetX,
-          pos.y + offsetY,
-          PLAYER_RADIUS,
-          0,
-          Math.PI * 2
-        );
+        ctx.arc(pos.x + offsetX, pos.y + offsetY, playerRadius, 0, Math.PI * 2);
         ctx.fillStyle = PLAYER_COLORS[index % PLAYER_COLORS.length];
         ctx.fill();
         ctx.strokeStyle = '#333';
-        ctx.lineWidth = 2;
+        ctx.lineWidth = 2 * scale;
         ctx.stroke();
 
-        // Draw player initial
+        // Draw player initial (scaled font)
         ctx.fillStyle = '#fff';
-        ctx.font = 'bold 14px Arial';
+        ctx.font = `bold ${Math.max(10, 14 * scale)}px Arial`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(
           player.name.charAt(0).toUpperCase(),
           pos.x + offsetX,
-          pos.y + offsetY
+          pos.y + offsetY,
         );
       });
     },
-    [players, getPlayerRenderPosition]
+    [
+      players,
+      getPlayerRenderPosition,
+      canvasSize,
+      squareSize,
+      playerRadius,
+      scale,
+    ],
   );
 
   // Animation loop
@@ -215,7 +228,7 @@ export default function CanvasGameBoard({
   // Load board image
   useEffect(() => {
     const img = new Image();
-    img.src = '/assets/board.png'; // Make sure this image exists in /public
+    img.src = '/assets/board.png';
     img.onload = () => {
       boardImageRef.current = img;
       imageLoadedRef.current = true;
@@ -227,12 +240,22 @@ export default function CanvasGameBoard({
   }, []);
 
   return (
-    <canvas
-      ref={canvasRef}
-      width={BOARD_SIZE}
-      height={BOARD_SIZE}
-      className="border-4 border-gray-800 rounded-lg shadow-xl mx-auto"
-      style={{ maxWidth: '100%', height: 'auto' }}
-    />
+    <div
+      ref={containerRef}
+      className="w-full flex justify-center"
+      style={{ minHeight: canvasSize }}
+    >
+      <canvas
+        ref={canvasRef}
+        width={canvasSize}
+        height={canvasSize}
+        className="border-4 border-gray-800 rounded-lg shadow-xl"
+        style={{
+          width: canvasSize,
+          height: canvasSize,
+          touchAction: 'none',
+        }}
+      />
+    </div>
   );
 }
