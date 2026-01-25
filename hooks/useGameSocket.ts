@@ -2,18 +2,25 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { io, Socket } from 'socket.io-client';
-import type { GameState, RoomInfo, Room } from '@/lib/types';
+import type { GameState, RoomInfo } from '@/lib/types';
 import type {
   ServerToClientEvents,
   ClientToServerEvents,
 } from '@/lib/socketEvents';
 
-// Typed socket
 type TypedSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
+
+// New type for roll info
+interface LastRollInfo {
+  playerId: string;
+  playerName: string;
+  roll: number;
+  newPosition: number;
+}
 
 export function useGameSocket() {
   const [gameState, setGameState] = useState<GameState | null>(null);
-  const [lastRoll, setLastRoll] = useState<number | null>(null);
+  const [lastRollInfo, setLastRollInfo] = useState<LastRollInfo | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [myId, setMyId] = useState<string | null>(null);
   const [currentRoomId, setCurrentRoomId] = useState<string | null>(null);
@@ -43,13 +50,35 @@ export function useGameSocket() {
     });
 
     socket.on('gameState', (data) => {
-      setGameState(data);
+      setGameState((prevState) => {
+        // Get player name from the updated game state
+        if (prevState) {
+          setLastRollInfo((prevRoll) => {
+            if (prevRoll && data.players[prevRoll.playerId]) {
+              return {
+                ...prevRoll,
+                playerName: data.players[prevRoll.playerId].name,
+              };
+            }
+            return prevRoll;
+          });
+        }
+        return data;
+      });
       setError(null);
     });
 
     socket.on('diceRolled', (data) => {
-      setLastRoll(data.roll);
-      setTimeout(() => setLastRoll(null), 2000);
+      // Store full roll info including who rolled
+      setLastRollInfo({
+        playerId: data.playerId,
+        playerName: '', // Will be filled from gameState
+        roll: data.roll,
+        newPosition: data.newPosition,
+      });
+
+      // Clear after 3 seconds
+      setTimeout(() => setLastRollInfo(null), 3000);
     });
 
     socket.on('gameWon', (data) => {
@@ -57,7 +86,7 @@ export function useGameSocket() {
     });
 
     socket.on('gameReset', () => {
-      setLastRoll(null);
+      setLastRollInfo(null);
       setError(null);
     });
 
@@ -121,7 +150,7 @@ export function useGameSocket() {
     rollDice,
     resetGame,
     isMyTurn,
-    lastRoll,
+    lastRollInfo,
     error,
     myId,
     currentRoomId,
@@ -133,3 +162,5 @@ export function useGameSocket() {
     leaveRoom,
   };
 }
+
+export type { LastRollInfo };

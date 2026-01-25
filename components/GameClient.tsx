@@ -6,13 +6,14 @@ import { GameState, Player } from '@/lib/types';
 import { usePlayerAnimation } from '@/hooks/usePlayerAnimation';
 import { useEffect, useRef, useMemo, useState } from 'react';
 import { GAME_CONFIG } from '@/lib/constants';
+import type { LastRollInfo } from '@/hooks/useGameSocket';
 
 export default function GameClient({
   gameState,
   rollDice,
   resetGame,
   isMyTurn,
-  lastRoll,
+  lastRollInfo,
   error,
   myId,
 }: {
@@ -20,9 +21,9 @@ export default function GameClient({
   rollDice: () => void;
   resetGame: () => void;
   isMyTurn: boolean;
-  lastRoll: number | null;
+  lastRollInfo: LastRollInfo | null;
   error: string | null;
-  myId: string;
+  myId: string | null;
 }) {
   const { animationState, animatePlayerMove, cancelAnimation } =
     usePlayerAnimation();
@@ -79,7 +80,7 @@ export default function GameClient({
       cancelAnimation();
       pendingAnimations.current.clear();
 
-      // Instantly reset all visual positions (or animate all simultaneously)
+      // Instantly reset all visual positions
       const newVisualPositions: Record<string, number> = {};
       Object.values(gameState.players).forEach((player) => {
         newVisualPositions[player.id] = GAME_CONFIG.STARTING_POSITION;
@@ -158,7 +159,21 @@ export default function GameClient({
     );
   }
 
-  const players = Object.values(gameState.players);
+  // Determine roll message based on who rolled
+  const getRollMessage = () => {
+    if (!lastRollInfo || !gameState) return null;
+
+    const rollerName = gameState.players[lastRollInfo.playerId]?.name;
+    const isMyRoll = lastRollInfo.playerId === myId;
+
+    if (isMyRoll) {
+      return `🎲 You rolled: ${lastRollInfo.roll}`;
+    } else {
+      return `🎲 ${rollerName} rolled: ${lastRollInfo.roll}`;
+    }
+  };
+
+  const rollMessage = getRollMessage();
 
   return (
     <div className="relative">
@@ -175,11 +190,9 @@ export default function GameClient({
           </div>
         )}
 
-        {lastRoll && (
+        {rollMessage && (
           <div className="bg-blue-50 border-2 border-blue-200 text-blue-700 px-6 py-3 rounded-lg text-center">
-            <span className="text-2xl font-bold">
-              🎲 You rolled: {lastRoll}
-            </span>
+            <span className="text-2xl font-bold">{rollMessage}</span>
           </div>
         )}
 

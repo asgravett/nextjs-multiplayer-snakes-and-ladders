@@ -12,7 +12,7 @@ export default function GamePage() {
     gameState,
     rollDice,
     resetGame,
-    lastRoll,
+    lastRollInfo, // Changed from lastRoll
     error,
     myId,
     currentRoomId,
@@ -101,10 +101,10 @@ export default function GamePage() {
             gameState?.winner
               ? `🎉 ${gameState.players[gameState.winner]?.name} wins!`
               : isMyTurn
-              ? '🎲 Your turn!'
-              : `${
-                  gameState?.players[gameState?.currentTurn || '']?.name
-                }'s turn`
+                ? '🎲 Your turn!'
+                : `${
+                    gameState?.players[gameState?.currentTurn || '']?.name
+                  }'s turn`
           }
           actions={
             <div className="flex items-center gap-3">
@@ -144,7 +144,7 @@ export default function GamePage() {
                 rollDice={rollDice}
                 resetGame={resetGame}
                 isMyTurn={isMyTurn}
-                lastRoll={lastRoll}
+                lastRollInfo={lastRollInfo} // Changed from lastRoll
                 error={error}
                 myId={myId}
               />
