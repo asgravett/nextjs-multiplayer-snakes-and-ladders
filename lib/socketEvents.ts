@@ -39,19 +39,20 @@ export interface ServerToClientEvents {
   // Room events
   roomsList: (rooms: RoomInfo[]) => void;
   roomJoined: (data: { roomId: string; room: Room }) => void;
+  roomLeft: () => void; // Add this new event
 
-  // Game state events
+  // Game events
   gameState: (state: GameState) => void;
   diceRolled: (data: {
     playerId: string;
     roll: number;
     newPosition: number;
   }) => void;
-  gameWon: (data: { winner: string; winnerId: string }) => void;
-  gameReset: (data: Record<string, never>) => void;
+  gameWon: (data: { winner: string }) => void;
+  gameReset: () => void;
 
-  // Error handling
-  error: (data: { message: string; code?: string }) => void;
+  // Error events
+  error: (data: { message: string }) => void;
 }
 
 // ============================================

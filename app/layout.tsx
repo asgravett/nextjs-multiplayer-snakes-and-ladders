@@ -1,29 +1,26 @@
-import { Geist, Geist_Mono } from 'next/font/google';
+import type { Metadata } from 'next';
+import { Inter } from 'next/font/google';
 import './globals.css';
+import ErrorBoundary from '@/components/ErrorBoundary';
 
-const geistSans = Geist({
-  variable: '--font-geist-sans',
-  subsets: ['latin'],
-});
+const inter = Inter({ subsets: ['latin'] });
 
-const geistMono = Geist_Mono({
-  variable: '--font-geist-mono',
-  subsets: ['latin'],
-});
-
-export const metadata = {
-  title: 'Snakes And Ladders',
-  description:
-    'A modern, real-time Snakes & Ladders game built with Next.js, TypeScript, Socket.IO, and Zod, with a focus on performance, accessibility, and clean architecture.',
+export const metadata: Metadata = {
+  title: 'Snakes & Ladders - Multiplayer',
+  description: 'A multiplayer Snakes and Ladders game',
 };
 
-export default function RootLayout({ children }) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
-        {children}
+      <body className={inter.className}>
+        <ErrorBoundary showDetails={process.env.NODE_ENV === 'development'}>
+          {children}
+        </ErrorBoundary>
       </body>
     </html>
   );

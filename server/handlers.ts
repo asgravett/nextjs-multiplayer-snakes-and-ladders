@@ -206,21 +206,46 @@ export const createHandlers = (io: TypedServer) => {
 
     handleLeaveRoom: (socket: TypedSocket, data: unknown): void => {
       try {
-        const { roomId } = validateSocketData(roomIdSchema, data);
+        const { roomId } = validateSocketData(leaveRoomPayloadSchema, data);
         const room = roomManager.get(roomId);
 
-        validateRoomExists(room, roomId);
+        if (room) {
+          const player = room.gameState.players[socket.id];
+          const playerName = player?.name || 'Unknown';
 
-        socket.leave(roomId);
-        const roomDeleted = roomManager.removePlayer(roomId, socket.id);
+          socket.leave(roomId);
+          delete room.gameState.players[socket.id];
+          room.gameState.playerOrder = room.gameState.playerOrder.filter(
+            (id) => id !== socket.id,
+          );
 
-        if (!roomDeleted) {
-          io.to(roomId).emit('gameState', roomManager.get(roomId)!.gameState);
+          // Notify the leaving player
+          socket.emit('roomLeft');
+
+          // If room is empty, delete it
+          if (Object.keys(room.gameState.players).length === 0) {
+            roomManager.delete(roomId);
+          } else {
+            // Assign new host if needed
+            if (room.host === socket.id) {
+              room.host = room.gameState.playerOrder[0];
+            }
+
+            // Update remaining players
+            io.to(roomId).emit('gameState', room.gameState);
+
+            // Notify remaining players (optional: system message)
+            io.to(roomId).emit('systemMessage', {
+              message: `${playerName} left the room`,
+              timestamp: Date.now(),
+            });
+          }
+
+          // Update room list for everyone
+          io.emit('roomsList', getRoomsList());
+
+          console.log(`Player ${socket.id} left room ${roomId}`);
         }
-
-        broadcastRoomsList();
-
-        console.log(`[Room ${roomId}] Player ${socket.id} left`);
       } catch (error) {
         handleError(socket, error);
       }
