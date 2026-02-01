@@ -138,10 +138,10 @@ export default function GamePage() {
 
   // Game in progress - wrap in GameErrorBoundary
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-4 px-4">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-4 px-4 pb-safe">
       {/* Reconnecting banner */}
       {isReconnecting && (
-        <div className="fixed top-0 left-0 right-0 bg-amber-500 text-white text-center py-2 px-4 z-50">
+        <div className="fixed top-0 left-0 right-0 bg-amber-500 text-white text-center py-2 px-4 z-50 pt-safe">
           <span className="animate-pulse">
             ⚠️ Connection lost. Reconnecting...
           </span>
@@ -157,6 +157,8 @@ export default function GamePage() {
           lastRollInfo={lastRollInfo}
           error={error}
           myId={myId}
+          onLeaveGame={handleLeaveGame}
+          isHost={isHost}
         />
       </GameErrorBoundary>
     </div>
