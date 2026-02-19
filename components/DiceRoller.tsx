@@ -8,7 +8,7 @@ export default function DiceRoller({
   disabled?: boolean;
 }) {
   return (
-    <div className="absolute -bottom-20 left-1/2 -translate-x-1/2">
+    <div className="flex justify-center">
       <button
         onClick={onRoll}
         disabled={disabled}

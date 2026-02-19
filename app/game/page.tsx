@@ -8,6 +8,9 @@ import GameErrorBoundary from '@/components/GameErrorBoundary';
 import ConnectionError from '@/components/ConnectionError';
 import { LoadingSpinner, Card, CardContent } from '@/components/ui';
 import { useRouter } from 'next/navigation';
+import WinCelebration from '@/components/WinCelebration';
+import LoseCelebration from '@/components/LoseCelebration';
+import GameHeader from '@/components/GameHeader';
 
 export default function GamePage() {
   const router = useRouter();
@@ -41,6 +44,9 @@ export default function GamePage() {
   } = useGameSocket(errorHandler);
 
   const isMyTurn = gameState?.currentTurn === myId;
+  const winnerName = gameState?.winner
+    ? gameState.players[gameState.winner]?.name
+    : null;
 
   const handleRetry = () => {
     incrementRetry();
@@ -93,30 +99,31 @@ export default function GamePage() {
   // In lobby (not in a room)
   if (!currentRoomId) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-8 px-4">
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-gray-800 mb-2">
-            🐍 Snakes & Ladders 🪜
-          </h1>
-          <p className="text-gray-600">Multiplayer Board Game</p>
-          {/* Connection status indicator */}
-          <div className="mt-2 flex items-center justify-center gap-2">
-            <div
-              className={`w-2 h-2 rounded-full ${
-                isConnected ? 'bg-green-500' : 'bg-red-500'
-              }`}
-            />
-            <span className="text-sm text-gray-500">
-              {isConnected ? 'Connected' : 'Disconnected'}
-            </span>
-          </div>
-        </div>
-        <Lobby
-          rooms={availableRooms}
-          onCreateRoom={createRoom}
-          onJoinRoom={joinRoom}
-          error={error}
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+        <GameHeader
+          title="🎲 Snakes and Ladders 🐍"
+          subtitle="Multiplayer Board Game"
+          actions={
+            <div className="flex items-center gap-2">
+              <div
+                className={`w-2 h-2 rounded-full ${
+                  isConnected ? 'bg-green-500' : 'bg-red-500'
+                }`}
+              />
+              <span className="text-sm text-gray-500">
+                {isConnected ? 'Connected' : 'Disconnected'}
+              </span>
+            </div>
+          }
         />
+        <div className="py-8 px-4">
+          <Lobby
+            rooms={availableRooms}
+            onCreateRoom={createRoom}
+            onJoinRoom={joinRoom}
+            error={error}
+          />
+        </div>
       </div>
     );
   }
@@ -124,21 +131,37 @@ export default function GamePage() {
   // In room, waiting for game to start
   if (!gameState?.gameStarted) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-8 px-4">
-        <WaitingRoom
-          gameState={gameState!}
-          isHost={isHost}
-          onStartGame={startGame}
-          onLeaveRoom={leaveRoom}
-          myId={myId}
-        />
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+        <GameHeader title="Waiting Room" subtitle={`Room: ${currentRoomId}`} />
+        <div className="py-8 px-4">
+          <WaitingRoom
+            gameState={gameState!}
+            isHost={isHost}
+            onStartGame={startGame}
+            onLeaveRoom={leaveRoom}
+            myId={myId}
+          />
+        </div>
       </div>
     );
   }
 
   // Game in progress - wrap in GameErrorBoundary
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-4 px-4 pb-safe">
+    <div className="h-dvh overflow-hidden bg-gradient-to-br from-blue-50 to-indigo-100">
+      <GameHeader
+        title="🎲 Snakes and Ladders 🐍"
+        subtitle={isMyTurn ? 'Your turn!' : 'Waiting for opponent...'}
+        // showBackButton={false}
+        actions={
+          <button
+            onClick={handleLeaveGame}
+            className="text-sm text-red-600 hover:text-red-800 font-medium transition-colors"
+          >
+            Leave Game
+          </button>
+        }
+      />
       {/* Reconnecting banner */}
       {isReconnecting && (
         <div className="fixed top-0 left-0 right-0 bg-amber-500 text-white text-center py-2 px-4 z-50 pt-safe">
@@ -161,6 +184,24 @@ export default function GamePage() {
           isHost={isHost}
         />
       </GameErrorBoundary>
+
+      {/* Win Celebration Modal */}
+      <WinCelebration
+        winnerName={winnerName || ''}
+        isVisible={!!gameState?.winner && gameState.winner === myId}
+        onPlayAgain={isHost ? resetGame : undefined}
+        onLeave={leaveRoom}
+        isHost={isHost}
+      />
+
+      {/* Lose Celebration Modal */}
+      <LoseCelebration
+        winnerName={winnerName || ''}
+        isVisible={!!gameState?.winner && gameState.winner !== myId}
+        onPlayAgain={isHost ? resetGame : undefined}
+        onLeave={leaveRoom}
+        isHost={isHost}
+      />
     </div>
   );
 }

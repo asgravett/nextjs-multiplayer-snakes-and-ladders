@@ -206,7 +206,7 @@ export const createHandlers = (io: TypedServer) => {
 
     handleLeaveRoom: (socket: TypedSocket, data: unknown): void => {
       try {
-        const { roomId } = validateSocketData(leaveRoomPayloadSchema, data);
+        const { roomId } = validateSocketData(roomIdSchema, data);
         const room = roomManager.get(roomId);
 
         if (room) {
@@ -233,16 +233,10 @@ export const createHandlers = (io: TypedServer) => {
 
             // Update remaining players
             io.to(roomId).emit('gameState', room.gameState);
-
-            // Notify remaining players (optional: system message)
-            io.to(roomId).emit('systemMessage', {
-              message: `${playerName} left the room`,
-              timestamp: Date.now(),
-            });
           }
 
           // Update room list for everyone
-          io.emit('roomsList', getRoomsList());
+          broadcastRoomsList();
 
           console.log(`Player ${socket.id} left room ${roomId}`);
         }

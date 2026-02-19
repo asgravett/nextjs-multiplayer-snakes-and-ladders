@@ -41,9 +41,10 @@ export default function CanvasGameBoard({
   const { width: canvasSize, scale } = useResponsiveCanvas(containerRef, {
     baseSize: BASE_BOARD_SIZE,
     minSize: 280,
-    maxSize: 600, // Reduced from 800
+    maxSize: 700,
     padding: 16,
-    reserveBottomSpace: 220, // Space for dice roller + status messages
+    reserveBottomSpace: 80,
+    reserveBottomSpaceMobile: 230,
   });
 
   // Scaled values
@@ -242,7 +243,7 @@ export default function CanvasGameBoard({
   return (
     <div
       ref={containerRef}
-      className="w-full flex justify-center"
+      className="flex justify-center"
       style={{ minHeight: canvasSize }}
     >
       <canvas

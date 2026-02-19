@@ -21,15 +21,27 @@ interface AnimationOptions {
 const DEFAULT_MS_PER_SQUARE = 200;
 const DEFAULT_SNAKE_LADDER_DURATION = 600;
 
+// Enable debug logging
+const DEBUG_ANIMATION = true;
+
+const debugLog = (...args: unknown[]) => {
+  if (DEBUG_ANIMATION) {
+    console.log('[Animation]', ...args);
+  }
+};
+
 // Build a reverse lookup: destination -> start (at module level, not inside function)
 const SNAKE_LADDER_REVERSE: Record<number, number> = {};
 for (const [start, end] of Object.entries(SNAKES_AND_LADDERS)) {
   SNAKE_LADDER_REVERSE[Number(end)] = Number(start);
 }
 
+debugLog('SNAKES_AND_LADDERS:', SNAKES_AND_LADDERS);
+debugLog('SNAKE_LADDER_REVERSE:', SNAKE_LADDER_REVERSE);
+
 export function usePlayerAnimation() {
   const [animationState, setAnimationState] = useState<AnimationState | null>(
-    null
+    null,
   );
   const animationRef = useRef<number>();
   const isAnimatingRef = useRef(false);
@@ -49,8 +61,9 @@ export function usePlayerAnimation() {
       fromSquare: number,
       toSquare: number,
       duration: number,
-      phase: 'moving' | 'snake' | 'ladder'
+      phase: 'moving' | 'snake' | 'ladder',
     ): Promise<void> => {
+      debugLog(`animateSegment: ${fromSquare} -> ${toSquare}, phase: ${phase}`);
       return new Promise((resolve) => {
         const startTime = performance.now();
 
@@ -82,7 +95,7 @@ export function usePlayerAnimation() {
         animationRef.current = requestAnimationFrame(animate);
       });
     },
-    []
+    [],
   );
 
   const animateSquareBySquare = useCallback(
@@ -90,8 +103,9 @@ export function usePlayerAnimation() {
       playerId: string,
       fromSquare: number,
       toSquare: number,
-      msPerSquare: number
+      msPerSquare: number,
     ): Promise<void> => {
+      debugLog(`animateSquareBySquare: ${fromSquare} -> ${toSquare}`);
       const direction = toSquare > fromSquare ? 1 : -1;
       let currentSquare = fromSquare;
 
@@ -102,12 +116,12 @@ export function usePlayerAnimation() {
           currentSquare,
           nextSquare,
           msPerSquare,
-          'moving'
+          'moving',
         );
         currentSquare = nextSquare;
       }
     },
-    [animateSegment]
+    [animateSegment],
   );
 
   const animatePlayerMove = useCallback(
@@ -115,7 +129,7 @@ export function usePlayerAnimation() {
       playerId: string,
       fromSquare: number,
       toSquare: number,
-      options: AnimationOptions = {}
+      options: AnimationOptions = {},
     ) => {
       const {
         msPerSquare = DEFAULT_MS_PER_SQUARE,
@@ -123,27 +137,47 @@ export function usePlayerAnimation() {
         onComplete,
       } = options;
 
+      debugLog('=== animatePlayerMove START ===');
+      debugLog(`Player: ${playerId}`);
+      debugLog(`From: ${fromSquare} -> To: ${toSquare}`);
+
       // Cancel any existing animation
       cancelAnimation();
       isAnimatingRef.current = true;
 
       try {
         // Check if final position (toSquare) is the result of a snake/ladder
+        // SNAKE_LADDER_REVERSE maps: end position -> start position
         const snakeLadderStart = SNAKE_LADDER_REVERSE[toSquare];
 
-        // Determine if the snake/ladder start is reachable from fromSquare
-        const isSnakeLadderTriggered =
+        debugLog(
+          `snakeLadderStart (from reverse lookup of ${toSquare}): ${snakeLadderStart}`,
+        );
+
+        // Check if a snake/ladder was triggered:
+        // The toSquare is a known snake/ladder destination AND
+        // the snakeLadderStart is between fromSquare+1 and fromSquare+6 (dice roll landed on it)
+        const diceRollLandedOnSnakeLadder =
           snakeLadderStart !== undefined &&
           snakeLadderStart > fromSquare &&
-          snakeLadderStart <= fromSquare + 6; // Max dice roll is 6
+          snakeLadderStart <= fromSquare + 6;
 
-        if (isSnakeLadderTriggered) {
+        debugLog(`Dice roll range: ${fromSquare + 1} to ${fromSquare + 6}`);
+        debugLog(
+          `Is snake/ladder start in range: ${diceRollLandedOnSnakeLadder}`,
+        );
+
+        if (diceRollLandedOnSnakeLadder) {
+          debugLog(
+            `Snake/Ladder detected! Moving to ${snakeLadderStart} first, then to ${toSquare}`,
+          );
+
           // Phase 1: Animate square-by-square to the snake/ladder start
           await animateSquareBySquare(
             playerId,
             fromSquare,
             snakeLadderStart,
-            msPerSquare
+            msPerSquare,
           );
 
           // Small pause before snake/ladder animation
@@ -154,21 +188,27 @@ export function usePlayerAnimation() {
           // Phase 2: Animate diagonally along the snake/ladder
           if (isAnimatingRef.current) {
             const isSnake = toSquare < snakeLadderStart;
+            debugLog(
+              `Animating ${isSnake ? 'snake' : 'ladder'}: ${snakeLadderStart} -> ${toSquare}`,
+            );
             await animateSegment(
               playerId,
               snakeLadderStart,
               toSquare,
               snakeLadderDuration,
-              isSnake ? 'snake' : 'ladder'
+              isSnake ? 'snake' : 'ladder',
             );
           }
         } else {
+          debugLog(
+            `No snake/ladder - regular move: ${fromSquare} -> ${toSquare}`,
+          );
           // No snake/ladder - just animate square-by-square
           await animateSquareBySquare(
             playerId,
             fromSquare,
             toSquare,
-            msPerSquare
+            msPerSquare,
           );
         }
 
@@ -184,6 +224,7 @@ export function usePlayerAnimation() {
           });
         }
 
+        debugLog('=== animatePlayerMove COMPLETE ===');
         onComplete?.();
       } catch (error) {
         console.error('Animation error:', error);
@@ -194,7 +235,7 @@ export function usePlayerAnimation() {
         }, 100);
       }
     },
-    [cancelAnimation, animateSquareBySquare, animateSegment]
+    [cancelAnimation, animateSquareBySquare, animateSegment],
   );
 
   return {

@@ -14,16 +14,20 @@ interface UseResponsiveCanvasOptions {
   maxSize?: number;
   padding?: number;
   maintainAspectRatio?: boolean;
-  reserveBottomSpace?: number; // Space to reserve for controls below canvas
+  reserveBottomSpace?: number;
+  reserveBottomSpaceMobile?: number;
+  mobileBreakpoint?: number;
 }
 
 const DEFAULT_OPTIONS = {
   baseSize: 600,
   minSize: 280,
-  maxSize: 700, // Reduced from 800
+  maxSize: 700,
   padding: 32,
   maintainAspectRatio: true,
-  reserveBottomSpace: 250, // Reserve space for dice roller and status messages
+  reserveBottomSpace: 250,
+  reserveBottomSpaceMobile: undefined as number | undefined,
+  mobileBreakpoint: 1024,
 };
 
 export function useResponsiveCanvas(
@@ -37,6 +41,8 @@ export function useResponsiveCanvas(
     padding = DEFAULT_OPTIONS.padding,
     maintainAspectRatio = DEFAULT_OPTIONS.maintainAspectRatio,
     reserveBottomSpace = DEFAULT_OPTIONS.reserveBottomSpace,
+    reserveBottomSpaceMobile = DEFAULT_OPTIONS.reserveBottomSpaceMobile,
+    mobileBreakpoint = DEFAULT_OPTIONS.mobileBreakpoint,
   } = options;
 
   const [dimensions, setDimensions] = useState<CanvasDimensions>({
@@ -69,23 +75,26 @@ export function useResponsiveCanvas(
       lastWindowHeightRef.current = windowHeight;
       initializedRef.current = true;
 
+      // Pick the correct reserve based on orientation
+      // In landscape, controls sit beside the board; in portrait, they stack below
+      const isLandscape = windowWidth > windowHeight;
+      const effectiveReserve =
+        reserveBottomSpaceMobile !== undefined && !isLandscape
+          ? reserveBottomSpaceMobile
+          : reserveBottomSpace;
+
       let availableWidth: number;
       let availableHeight: number;
 
       const container = containerRef.current;
 
       if (container) {
-        // Use window width minus padding, not container width
-        // This prevents the feedback loop
         availableWidth = windowWidth - padding * 2;
-
-        // Calculate available height: window height - top offset - reserved bottom space - padding
         const topOffset = container.getBoundingClientRect().top;
-        availableHeight =
-          windowHeight - topOffset - reserveBottomSpace - padding;
+        availableHeight = windowHeight - topOffset - effectiveReserve - padding;
       } else {
         availableWidth = windowWidth - padding * 2;
-        availableHeight = windowHeight - reserveBottomSpace - padding * 2;
+        availableHeight = windowHeight - effectiveReserve - padding * 2;
       }
 
       // Ensure we don't go negative
@@ -141,6 +150,8 @@ export function useResponsiveCanvas(
     padding,
     maintainAspectRatio,
     reserveBottomSpace,
+    reserveBottomSpaceMobile,
+    mobileBreakpoint,
     containerRef,
   ]);
 

@@ -6,7 +6,7 @@ import { GameState, Player } from '@/lib/types';
 import { usePlayerAnimation } from '@/hooks/usePlayerAnimation';
 import { useEffect, useRef, useMemo, useState } from 'react';
 import { GAME_CONFIG } from '@/lib/constants';
-import { Button, ErrorMessage } from '@/components/ui';
+import { ErrorMessage } from '@/components/ui';
 import type { LastRollInfo } from '@/hooks/useGameSocket';
 
 export default function GameClient({
@@ -164,55 +164,61 @@ export default function GameClient({
   const rollMessage = getRollMessage();
 
   return (
-    <div className="relative">
-      <CanvasGameBoard
-        players={playersWithVisualPositions}
-        animatingPlayer={animationState?.playerId}
-        animationState={animationState}
-      />
+    <div className="flex justify-center items-center p-2 landscape:p-4 h-[calc(100dvh-64px)] overflow-hidden">
+      <div className="flex flex-col landscape:flex-row landscape:items-center gap-2 landscape:gap-6">
+        {/* Board — sizes to fit the canvas, centered with sidebar */}
+        <div className="shrink-0 flex justify-center">
+          <CanvasGameBoard
+            players={playersWithVisualPositions}
+            animatingPlayer={animationState?.playerId}
+            animationState={animationState}
+          />
+        </div>
 
-      <div className="mt-6 space-y-4">
-        {/* Error Message */}
-        {error && <ErrorMessage message={error} variant="error" />}
+        {/* Controls sidebar — stacks below on mobile, sits right in landscape */}
+        <div className="w-full landscape:w-72 xl:w-80 flex flex-col gap-2 landscape:gap-4 shrink-0">
+          {/* Error Message — reserved space */}
+          <div className="min-h-0">
+            {error && <ErrorMessage message={error} variant="error" />}
+          </div>
 
-        {/* Roll Message */}
-        {rollMessage && (
-          <ErrorMessage message={rollMessage} variant="info" icon="🎲" />
-        )}
-
-        {/* Turn Indicator */}
-        {!gameState.winner && (
-          <div className="bg-gray-50 border-2 border-gray-200 text-gray-700 px-4 py-3 rounded-lg text-center font-semibold">
-            {isMyTurn ? (
-              <span className="text-blue-600">
-                🎯 Your turn!{' '}
-                {animationState?.isAnimating ? 'Moving...' : 'Roll the dice'}
-              </span>
+          {/* Roll Message — always reserves its height to prevent reflow */}
+          <div className="min-h-10 landscape:min-h-12">
+            {rollMessage ? (
+              <ErrorMessage message={rollMessage} variant="info" icon="🎲" />
             ) : (
-              <span>
-                ⏳ Waiting for{' '}
-                <span className="font-bold text-blue-600">
-                  {gameState.players[gameState.currentTurn!]?.name}
-                </span>
-              </span>
+              <div aria-hidden className="h-10 landscape:h-12" />
             )}
           </div>
-        )}
 
-        {/* Winner Celebration */}
-        {gameState.winner && (
-          <div className="bg-green-50 border-2 border-green-200 text-green-700 px-8 py-6 rounded-lg text-center">
-            <h2 className="text-2xl font-bold mb-4">
-              🎉 {gameState.players[gameState.winner]?.name} Wins! 🎉
-            </h2>
-            <Button onClick={resetGame} size="lg" leftIcon={<span>🎮</span>}>
-              Play Again
-            </Button>
+          {/* Turn Indicator — always reserves its height to prevent reflow */}
+          <div className="min-h-[52px]">
+            {!gameState.winner ? (
+              <div className="bg-gray-50 border-2 border-gray-200 text-gray-700 px-4 py-3 rounded-lg text-center font-semibold">
+                {isMyTurn ? (
+                  <span className="text-blue-600">
+                    🎯 Your turn!{' '}
+                    {animationState?.isAnimating
+                      ? 'Moving...'
+                      : 'Roll the dice'}
+                  </span>
+                ) : (
+                  <span>
+                    ⏳ Waiting for{' '}
+                    <span className="font-bold text-blue-600">
+                      {gameState.players[gameState.currentTurn!]?.name}
+                    </span>
+                  </span>
+                )}
+              </div>
+            ) : (
+              <div className="bg-green-50 border-2 border-green-200 text-green-700 px-4 py-3 rounded-lg text-center font-semibold">
+                🎉 {gameState.players[gameState.winner]?.name} Wins!
+              </div>
+            )}
           </div>
-        )}
 
-        {/* Dice Roller */}
-        <div className="flex justify-center">
+          {/* Dice Roller */}
           <DiceRoller
             onRoll={rollDice}
             disabled={
