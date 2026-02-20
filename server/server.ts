@@ -44,6 +44,6 @@ io.on('connection', (socket) => {
   socket.on('disconnect', () => handlers.handleDisconnect(socket));
 });
 
-httpServer.listen(PORT, () => {
-  console.log(`Socket server running on http://localhost:${PORT}`);
+httpServer.listen(Number(PORT), '0.0.0.0', () => {
+  console.log(`Socket server running on port ${PORT}`);
 });
