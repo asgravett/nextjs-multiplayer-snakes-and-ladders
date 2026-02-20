@@ -8,7 +8,6 @@ import {
   CardContent,
   CardFooter,
 } from '@/components/ui';
-import { PLAYER_COLORS, COLOR_MAP } from '@/lib/constants';
 import PlayerCard from '@/components/PlayerCard';
 
 interface WaitingRoomProps {

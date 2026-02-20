@@ -29,7 +29,7 @@ export default function GameError({ error, reset }: GameErrorProps) {
               Game Error
             </h1>
             <p className="text-gray-500">
-              Something went wrong with the game. Don't worry, you can try
+              Something went wrong with the game. Don&apos;t worry, you can try
               again!
             </p>
           </div>

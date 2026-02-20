@@ -32,7 +32,7 @@ export default function GlobalError({ error, reset }: GlobalErrorProps) {
                   Something Went Wrong
                 </h1>
                 <p className="text-gray-500">
-                  The ladder broke! We're sorry, but something unexpected
+                  The ladder broke! We&apos;re sorry, but something unexpected
                   happened.
                 </p>
               </div>

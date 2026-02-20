@@ -1,6 +1,7 @@
 'use client';
 
 import React, { Component, ErrorInfo, ReactNode } from 'react';
+import Link from 'next/link';
 import { Button, Card, CardContent } from '@/components/ui';
 
 interface ErrorBoundaryProps {
@@ -76,8 +77,8 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
                   Oops! Something went wrong
                 </h1>
                 <p className="text-gray-600">
-                  We're sorry, but something unexpected happened. Please try
-                  again.
+                  We&apos;re sorry, but something unexpected happened. Please
+                  try again.
                 </p>
               </div>
 
@@ -120,12 +121,12 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
               {/* Help Link */}
               <p className="text-sm text-gray-500">
                 If the problem persists,{' '}
-                <a
+                <Link
                   href="/"
                   className="text-blue-500 hover:text-blue-700 underline"
                 >
                   return to the home page
-                </a>
+                </Link>
               </p>
             </CardContent>
           </Card>

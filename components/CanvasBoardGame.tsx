@@ -33,7 +33,7 @@ export default function CanvasGameBoard({
 }: CanvasGameBoardProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const animationRef = useRef<number>();
+  const animationRef = useRef<number>(undefined);
   const boardImageRef = useRef<HTMLImageElement | null>(null);
   const imageLoadedRef = useRef(false);
 

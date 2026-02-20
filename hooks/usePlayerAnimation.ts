@@ -43,7 +43,7 @@ export function usePlayerAnimation() {
   const [animationState, setAnimationState] = useState<AnimationState | null>(
     null,
   );
-  const animationRef = useRef<number>();
+  const animationRef = useRef<number>(undefined);
   const isAnimatingRef = useRef(false);
 
   const cancelAnimation = useCallback(() => {

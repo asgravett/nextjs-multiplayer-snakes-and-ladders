@@ -41,13 +41,9 @@ type TypedServer = Server<
 // Error handler with proper typing
 const handleError = (socket: TypedSocket, error: unknown): void => {
   const message = error instanceof Error ? error.message : 'Unknown error';
-  const code =
-    error instanceof Error && 'code' in error
-      ? (error as { code: string }).code
-      : 'UNKNOWN_ERROR';
 
   console.error(`[Socket ${socket.id}] Error:`, message);
-  socket.emit('error', { message, code });
+  socket.emit('error', { message });
 };
 
 // Generate unique room ID
@@ -157,7 +153,6 @@ export const createHandlers = (io: TypedServer) => {
           room!.gameState.winner = socket.id;
           io.to(roomId).emit('gameWon', {
             winner: room!.gameState.players[socket.id].name,
-            winnerId: socket.id,
           });
           console.log(
             `[Room ${roomId}] ${room!.gameState.players[socket.id].name} won!`,
@@ -196,7 +191,7 @@ export const createHandlers = (io: TypedServer) => {
         room!.gameState.gameStarted = true;
 
         io.to(roomId).emit('gameState', room!.gameState);
-        io.to(roomId).emit('gameReset', {});
+        io.to(roomId).emit('gameReset');
 
         console.log(`[Room ${roomId}] Game reset`);
       } catch (error) {

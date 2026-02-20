@@ -20,7 +20,7 @@ export default function NotFound() {
               Page Not Found
             </h2>
             <p className="text-gray-500">
-              Oops! Looks like you slid down a snake to a page that doesn't
+              Oops! Looks like you slid down a snake to a page that doesn&apos;t
               exist.
             </p>
           </div>

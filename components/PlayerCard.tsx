@@ -26,7 +26,7 @@ export default function PlayerCard({
       }`}
     >
       <div
-        className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold ${colors.bg}`}
+        className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold ${colors}`}
       >
         {name.charAt(0).toUpperCase()}
       </div>
