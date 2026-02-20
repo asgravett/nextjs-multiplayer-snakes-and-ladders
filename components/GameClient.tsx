@@ -17,6 +17,8 @@ export default function GameClient({
   lastRollInfo,
   error,
   myId,
+  onLeaveGame,
+  isHost,
 }: {
   gameState: GameState | null;
   rollDice: () => void;
@@ -25,6 +27,8 @@ export default function GameClient({
   lastRollInfo: LastRollInfo | null;
   error: string | null;
   myId: string | null;
+  onLeaveGame?: () => void;
+  isHost?: boolean;
 }) {
   const { animationState, animatePlayerMove, cancelAnimation } =
     usePlayerAnimation();
