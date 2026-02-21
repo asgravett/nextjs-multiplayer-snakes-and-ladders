@@ -19,6 +19,7 @@ export const createRoomSchema = z.object({
     .max(20, 'Player name too long')
     .trim()
     .refine((val) => val.length > 0, 'Player name cannot be empty'),
+  clientId: z.string().min(1, 'Client ID is required'),
 });
 
 export const joinRoomSchema = z.object({
@@ -32,6 +33,7 @@ export const joinRoomSchema = z.object({
     .max(20, 'Player name too long')
     .trim()
     .refine((val) => val.length > 0, 'Player name cannot be empty'),
+  clientId: z.string().min(1, 'Client ID is required'),
 });
 
 export const roomIdSchema = z.object({
@@ -41,16 +43,24 @@ export const roomIdSchema = z.object({
     .refine((val) => val.startsWith('room_'), 'Invalid room ID format'),
 });
 
+export const rejoinRoomSchema = z.object({
+  roomId: z
+    .string()
+    .min(1, 'Room ID is required')
+    .refine((val) => val.startsWith('room_'), 'Invalid room ID format'),
+  clientId: z.string().min(1, 'Client ID is required'),
+});
+
 // Validation helper with consistent error handling
 export const validateSocketData = <T>(
   schema: z.ZodSchema<T>,
-  data: unknown
+  data: unknown,
 ): T => {
   const result = schema.safeParse(data);
   if (!result.success) {
     const firstError = result.error.issues[0];
     throw GameErrors.INVALID_DATA(
-      `${firstError.path.join('.')}: ${firstError.message}`
+      `${firstError.path.join('.')}: ${firstError.message}`,
     );
   }
   return result.data;
@@ -71,7 +81,7 @@ export const validateGameNotOver = (winner: string | null) => {
 
 export const validatePlayerTurn = (
   currentTurn: string | null,
-  playerId: string
+  playerId: string,
 ) => {
   if (currentTurn !== playerId) throw GameErrors.NOT_YOUR_TURN();
 };
@@ -83,14 +93,14 @@ export const validateIsHost = (hostId: string, playerId: string) => {
 
 export const validateRoomNotFull = (
   playerCount: number,
-  maxPlayers: number
+  maxPlayers: number,
 ) => {
   if (playerCount >= maxPlayers) throw GameErrors.ROOM_FULL();
 };
 
 export const validateMinimumPlayers = (
   playerCount: number,
-  minimum: number = 2
+  minimum: number = 2,
 ) => {
   if (playerCount < minimum) {
     throw GameErrors.INSUFFICIENT_PLAYERS(`Need at least ${minimum} players`);

@@ -37,6 +37,7 @@ io.on('connection', (socket) => {
   // Register event handlers
   socket.on('createRoom', (data) => handlers.handleCreateRoom(socket, data));
   socket.on('joinRoom', (data) => handlers.handleJoinRoom(socket, data));
+  socket.on('rejoinRoom', (data) => handlers.handleRejoinRoom(socket, data));
   socket.on('startGame', (data) => handlers.handleStartGame(socket, data));
   socket.on('rollDice', (data) => handlers.handleRollDice(socket, data));
   socket.on('resetGame', (data) => handlers.handleResetGame(socket, data));

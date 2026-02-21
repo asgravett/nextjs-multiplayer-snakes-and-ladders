@@ -56,7 +56,7 @@ export default function ConnectionError({
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-linear-to-br from-gray-50 to-gray-100 flex items-center justify-center p-4">
       <Card variant="elevated" className="max-w-md w-full">
         <CardContent className="text-center space-y-6">
           <div className="text-6xl">{getErrorIcon()}</div>

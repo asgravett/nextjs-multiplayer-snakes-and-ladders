@@ -16,7 +16,7 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 
 const variantStyles: Record<ButtonVariant, string> = {
   primary:
-    'bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 shadow-md hover:shadow-lg',
+    'bg-linear-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 shadow-md hover:shadow-lg',
   secondary: 'bg-gray-200 text-gray-700 hover:bg-gray-300',
   danger: 'bg-red-500 text-white hover:bg-red-600 shadow-md hover:shadow-lg',
   ghost: 'bg-transparent text-gray-600 hover:bg-gray-100',
@@ -94,9 +94,9 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
           <LoadingSpinner size={size} />
         ) : (
           <>
-            {leftIcon && <span className="flex-shrink-0">{leftIcon}</span>}
+            {leftIcon && <span className="shrink-0">{leftIcon}</span>}
             {children}
-            {rightIcon && <span className="flex-shrink-0">{rightIcon}</span>}
+            {rightIcon && <span className="shrink-0">{rightIcon}</span>}
           </>
         )}
       </button>

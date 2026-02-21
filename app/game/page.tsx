@@ -76,7 +76,7 @@ export default function GamePage() {
   // Not connected yet or reconnecting
   if (!myId) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+      <div className="min-h-screen bg-linear-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
         <Card variant="elevated" className="p-8">
           <CardContent className="flex flex-col items-center gap-4">
             <LoadingSpinner
@@ -99,7 +99,7 @@ export default function GamePage() {
   // In lobby (not in a room)
   if (!currentRoomId) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+      <div className="min-h-screen bg-linear-to-br from-blue-50 to-indigo-100">
         <GameHeader
           title="🎲 Snakes and Ladders 🐍"
           subtitle="Multiplayer Board Game"
@@ -131,7 +131,7 @@ export default function GamePage() {
   // In room, waiting for game to start
   if (!gameState?.gameStarted) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+      <div className="min-h-screen bg-linear-to-br from-blue-50 to-indigo-100">
         <GameHeader title="Waiting Room" subtitle={`Room: ${currentRoomId}`} />
         <div className="py-8 px-4">
           <WaitingRoom
@@ -148,7 +148,7 @@ export default function GamePage() {
 
   // Game in progress - wrap in GameErrorBoundary
   return (
-    <div className="h-dvh overflow-hidden bg-gradient-to-br from-blue-50 to-indigo-100">
+    <div className="h-dvh overflow-hidden bg-linear-to-br from-blue-50 to-indigo-100">
       <GameHeader
         title="🎲 Snakes and Ladders 🐍"
         subtitle={isMyTurn ? 'Your turn!' : 'Waiting for opponent...'}

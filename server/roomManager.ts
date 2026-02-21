@@ -44,7 +44,12 @@ export class RoomManager {
     }));
   }
 
-  addPlayer(roomId: string, playerId: string, playerName: string): void {
+  addPlayer(
+    roomId: string,
+    playerId: string,
+    playerName: string,
+    clientId: string,
+  ): void {
     const room = this.get(roomId);
     if (!room) return;
 
@@ -52,6 +57,7 @@ export class RoomManager {
       id: playerId,
       position: GAME_CONFIG.STARTING_POSITION,
       name: playerName,
+      clientId,
     };
     room.gameState.playerOrder.push(playerId);
   }
@@ -85,12 +91,78 @@ export class RoomManager {
   }
 
   getNextTurn(gameState: GameState): string | null {
-    if (gameState.playerOrder.length === 0) return null;
-    const currentIndex = gameState.playerOrder.indexOf(
-      gameState.currentTurn || '',
+    // Only consider connected (active) players
+    const activePlayers = gameState.playerOrder.filter(
+      (id) => gameState.players[id] && !gameState.players[id].disconnected,
     );
-    const nextIndex = (currentIndex + 1) % gameState.playerOrder.length;
-    return gameState.playerOrder[nextIndex];
+    if (activePlayers.length === 0) return null;
+    const currentIndex = activePlayers.indexOf(gameState.currentTurn || '');
+    const nextIndex = (currentIndex + 1) % activePlayers.length;
+    return activePlayers[nextIndex];
+  }
+
+  // Returns the next active player after `afterPlayerId` in turn order,
+  // used when that player has just been marked disconnected.
+  getNextActiveTurn(
+    gameState: GameState,
+    afterPlayerId: string,
+  ): string | null {
+    const order = gameState.playerOrder;
+    const startIdx = order.indexOf(afterPlayerId);
+    if (startIdx === -1) return null;
+    for (let i = 1; i <= order.length; i++) {
+      const candidateId = order[(startIdx + i) % order.length];
+      if (
+        gameState.players[candidateId] &&
+        !gameState.players[candidateId].disconnected
+      ) {
+        return candidateId;
+      }
+    }
+    return null; // All players disconnected
+  }
+
+  markPlayerDisconnected(roomId: string, socketId: string): void {
+    const room = this.get(roomId);
+    if (!room || !room.gameState.players[socketId]) return;
+    room.gameState.players[socketId].disconnected = true;
+  }
+
+  findPlayerByClientId(
+    roomId: string,
+    clientId: string,
+  ): GameState['players'][string] | undefined {
+    const room = this.get(roomId);
+    if (!room) return undefined;
+    return Object.values(room.gameState.players).find(
+      (p) => p.clientId === clientId,
+    );
+  }
+
+  reconnectPlayer(
+    roomId: string,
+    oldSocketId: string,
+    newSocketId: string,
+  ): void {
+    const room = this.get(roomId);
+    if (!room) return;
+    const player = room.gameState.players[oldSocketId];
+    if (!player) return;
+
+    // Move entry to new socket ID
+    player.id = newSocketId;
+    player.disconnected = false;
+    delete room.gameState.players[oldSocketId];
+    room.gameState.players[newSocketId] = player;
+
+    // Update playerOrder
+    const idx = room.gameState.playerOrder.indexOf(oldSocketId);
+    if (idx !== -1) room.gameState.playerOrder[idx] = newSocketId;
+
+    // If it was their turn (e.g. turn was held while they were gone), update
+    if (room.gameState.currentTurn === oldSocketId) {
+      room.gameState.currentTurn = newSocketId;
+    }
   }
 
   findPlayerRoom(playerId: string): Room | undefined {

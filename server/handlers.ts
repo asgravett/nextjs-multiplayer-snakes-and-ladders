@@ -3,6 +3,7 @@ import {
   createRoomSchema,
   joinRoomSchema,
   roomIdSchema,
+  rejoinRoomSchema,
   validateSocketData,
   validateRoomExists,
   validateGameStarted,
@@ -56,19 +57,23 @@ export const createHandlers = (io: TypedServer) => {
     io.emit('roomsList', roomManager.getRoomsInfo());
   };
 
+  // Grace period before a mid-game disconnected player is permanently removed
+  const REJOIN_GRACE_MS = 120_000; // 2 minutes
+  // keyed by clientId
+  const disconnectTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
   return {
     handleCreateRoom: (socket: TypedSocket, data: unknown): void => {
       try {
-        const { roomName, playerName } = validateSocketData(
+        const { roomName, playerName, clientId } = validateSocketData(
           createRoomSchema,
           data,
         );
 
         const roomId = generateRoomId();
-        const room = roomManager.create(roomId, roomName, socket.id);
 
         socket.join(roomId);
-        roomManager.addPlayer(roomId, socket.id, playerName);
+        roomManager.addPlayer(roomId, socket.id, playerName, clientId);
 
         socket.emit('roomJoined', { roomId, room: roomManager.get(roomId)! });
         broadcastRoomsList();
@@ -81,7 +86,10 @@ export const createHandlers = (io: TypedServer) => {
 
     handleJoinRoom: (socket: TypedSocket, data: unknown): void => {
       try {
-        const { roomId, playerName } = validateSocketData(joinRoomSchema, data);
+        const { roomId, playerName, clientId } = validateSocketData(
+          joinRoomSchema,
+          data,
+        );
         const room = roomManager.get(roomId);
 
         validateRoomExists(room, roomId);
@@ -95,7 +103,7 @@ export const createHandlers = (io: TypedServer) => {
         }
 
         socket.join(roomId);
-        roomManager.addPlayer(roomId, socket.id, playerName);
+        roomManager.addPlayer(roomId, socket.id, playerName, clientId);
 
         const updatedRoom = roomManager.get(roomId)!;
         socket.emit('roomJoined', { roomId, room: updatedRoom });
@@ -205,9 +213,6 @@ export const createHandlers = (io: TypedServer) => {
         const room = roomManager.get(roomId);
 
         if (room) {
-          const player = room.gameState.players[socket.id];
-          const playerName = player?.name || 'Unknown';
-
           socket.leave(roomId);
           delete room.gameState.players[socket.id];
           room.gameState.playerOrder = room.gameState.playerOrder.filter(
@@ -224,6 +229,7 @@ export const createHandlers = (io: TypedServer) => {
             // Assign new host if needed
             if (room.host === socket.id) {
               room.host = room.gameState.playerOrder[0];
+              io.to(roomId).emit('hostChanged', { newHostId: room.host });
             }
 
             // Update remaining players
@@ -240,14 +246,130 @@ export const createHandlers = (io: TypedServer) => {
       }
     },
 
+    handleRejoinRoom: (socket: TypedSocket, data: unknown): void => {
+      try {
+        const { roomId, clientId } = validateSocketData(rejoinRoomSchema, data);
+        const room = roomManager.get(roomId);
+
+        if (!room) {
+          socket.emit('rejoinFailed', { reason: 'Room no longer exists' });
+          return;
+        }
+
+        const player = roomManager.findPlayerByClientId(roomId, clientId);
+        if (!player || !player.disconnected) {
+          socket.emit('rejoinFailed', {
+            reason: 'No disconnected session found in this room',
+          });
+          return;
+        }
+
+        const oldSocketId = player.id;
+
+        // Cancel the eviction timer
+        const timer = disconnectTimers.get(clientId);
+        if (timer) {
+          clearTimeout(timer);
+          disconnectTimers.delete(clientId);
+        }
+
+        // Re-bind the player to their new socket ID
+        roomManager.reconnectPlayer(roomId, oldSocketId, socket.id);
+
+        socket.join(roomId);
+
+        const updatedRoom = roomManager.get(roomId)!;
+        socket.emit('roomJoined', { roomId, room: updatedRoom });
+        io.to(roomId).emit('gameState', updatedRoom.gameState);
+        broadcastRoomsList();
+
+        console.log(
+          `[Room ${roomId}] Player ${socket.id} rejoined (was ${oldSocketId})`,
+        );
+      } catch (error) {
+        handleError(socket, error);
+      }
+    },
+
     handleDisconnect: (socket: TypedSocket): void => {
       const room = roomManager.findPlayerRoom(socket.id);
 
       if (room) {
-        const roomDeleted = roomManager.removePlayer(room.id, socket.id);
+        const player = room.gameState.players[socket.id];
+        const wasHost = room.host === socket.id;
+        const isMidGame = room.gameState.gameStarted && !room.gameState.winner;
 
-        if (!roomDeleted) {
-          io.to(room.id).emit('gameState', roomManager.get(room.id)!.gameState);
+        if (isMidGame && player) {
+          // Keep the slot — mark as disconnected so turn logic skips them
+          roomManager.markPlayerDisconnected(room.id, socket.id);
+
+          // Skip their turn if the game is waiting on them
+          if (room.gameState.currentTurn === socket.id) {
+            room.gameState.currentTurn = roomManager.getNextActiveTurn(
+              room.gameState,
+              socket.id,
+            );
+          }
+
+          // Transfer host to a connected player
+          if (wasHost) {
+            const nextActive = room.gameState.playerOrder.find(
+              (id) =>
+                id !== socket.id && !room.gameState.players[id]?.disconnected,
+            );
+            if (nextActive) {
+              room.host = nextActive;
+              io.to(room.id).emit('hostChanged', { newHostId: nextActive });
+            }
+          }
+
+          io.to(room.id).emit('gameState', room.gameState);
+
+          // Schedule permanent eviction after the grace period
+          const existing = disconnectTimers.get(player.clientId);
+          if (existing) clearTimeout(existing);
+
+          const timer = setTimeout(() => {
+            disconnectTimers.delete(player.clientId);
+            const currentRoom = roomManager.get(room.id);
+            if (!currentRoom) return;
+
+            // Find the player by clientId — their socketId may have changed if they rejoined
+            const currentPlayer = roomManager.findPlayerByClientId(
+              room.id,
+              player.clientId,
+            );
+            if (!currentPlayer || !currentPlayer.disconnected) return; // Already rejoined
+
+            const roomDeleted = roomManager.removePlayer(
+              room.id,
+              currentPlayer.id,
+            );
+            if (!roomDeleted) {
+              io.to(room.id).emit(
+                'gameState',
+                roomManager.get(room.id)!.gameState,
+              );
+            }
+            broadcastRoomsList();
+            console.log(
+              `[Room ${room.id}] Player ${currentPlayer.id} evicted after grace period`,
+            );
+          }, REJOIN_GRACE_MS);
+
+          disconnectTimers.set(player.clientId, timer);
+        } else {
+          // Pre-game or game over: remove immediately (existing behaviour)
+          const roomDeleted = roomManager.removePlayer(room.id, socket.id);
+          if (!roomDeleted) {
+            const updatedRoom = roomManager.get(room.id)!;
+            if (wasHost) {
+              io.to(room.id).emit('hostChanged', {
+                newHostId: updatedRoom.host,
+              });
+            }
+            io.to(room.id).emit('gameState', updatedRoom.gameState);
+          }
         }
 
         broadcastRoomsList();

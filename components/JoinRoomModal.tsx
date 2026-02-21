@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useLocalStorage } from '@/hooks';
 
 export default function JoinRoomModal({
   isOpen,
@@ -13,7 +13,7 @@ export default function JoinRoomModal({
   onClose: () => void;
   onJoin: (playerName: string) => void;
 }) {
-  const [playerName, setPlayerName] = useState('');
+  const [playerName, setPlayerName] = useLocalStorage('snl_player_name', '');
 
   if (!isOpen) return null;
 
@@ -21,7 +21,6 @@ export default function JoinRoomModal({
     e.preventDefault();
     if (playerName.trim()) {
       onJoin(playerName.trim());
-      setPlayerName('');
     }
   };
 
@@ -56,7 +55,7 @@ export default function JoinRoomModal({
 
         {/* Content */}
         <div className="text-center mb-6">
-          <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
+          <div className="w-16 h-16 bg-linear-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
             <span className="text-3xl">🎮</span>
           </div>
           <h2 className="text-2xl font-bold text-gray-800 mb-2">Join Room</h2>
@@ -98,7 +97,7 @@ export default function JoinRoomModal({
               disabled={!playerName.trim()}
               className={`flex-1 px-6 py-3 rounded-lg font-semibold transition-all ${
                 playerName.trim()
-                  ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 shadow-md hover:shadow-lg transform hover:scale-105'
+                  ? 'bg-linear-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 shadow-md hover:shadow-lg transform hover:scale-105'
                   : 'bg-gray-300 text-gray-500 cursor-not-allowed'
               }`}
             >

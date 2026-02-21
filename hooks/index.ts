@@ -16,3 +16,5 @@ export type {
 
 export { useSocketErrorBoundary } from './useSocketErrorBoundary';
 export type { SocketError } from './useSocketErrorBoundary';
+
+export { useLocalStorage } from './useLocalStorage';

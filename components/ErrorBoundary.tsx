@@ -65,7 +65,7 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
 
       // Default fallback UI
       return (
-        <div className="min-h-screen bg-gradient-to-br from-red-50 to-orange-50 flex items-center justify-center p-4">
+        <div className="min-h-screen bg-linear-to-br from-red-50 to-orange-50 flex items-center justify-center p-4">
           <Card variant="elevated" className="max-w-lg w-full">
             <CardContent className="text-center space-y-6">
               {/* Error Icon */}

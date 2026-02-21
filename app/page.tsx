@@ -80,7 +80,7 @@ export default function Home() {
             <div className="bg-gray-50 rounded-lg p-6">
               <ol className="space-y-4 text-gray-700">
                 <li className="flex items-start">
-                  <span className="bg-blue-500 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold mr-4 flex-shrink-0">
+                  <span className="bg-blue-500 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold mr-4 shrink-0">
                     1
                   </span>
                   <div>
@@ -92,7 +92,7 @@ export default function Home() {
                   </div>
                 </li>
                 <li className="flex items-start">
-                  <span className="bg-blue-500 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold mr-4 flex-shrink-0">
+                  <span className="bg-blue-500 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold mr-4 shrink-0">
                     2
                   </span>
                   <div>
@@ -102,7 +102,7 @@ export default function Home() {
                   </div>
                 </li>
                 <li className="flex items-start">
-                  <span className="bg-blue-500 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold mr-4 flex-shrink-0">
+                  <span className="bg-blue-500 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold mr-4 shrink-0">
                     3
                   </span>
                   <div>
@@ -114,7 +114,7 @@ export default function Home() {
                   </div>
                 </li>
                 <li className="flex items-start">
-                  <span className="bg-blue-500 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold mr-4 flex-shrink-0">
+                  <span className="bg-blue-500 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold mr-4 shrink-0">
                     4
                   </span>
                   <div>
@@ -125,7 +125,7 @@ export default function Home() {
                   </div>
                 </li>
                 <li className="flex items-start">
-                  <span className="bg-blue-500 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold mr-4 flex-shrink-0">
+                  <span className="bg-blue-500 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold mr-4 shrink-0">
                     5
                   </span>
                   <div>
@@ -162,7 +162,7 @@ export default function Home() {
           <div className="text-center">
             <Link
               href="/game"
-              className="inline-block bg-gradient-to-r from-blue-500 to-blue-600 text-white text-xl font-bold px-12 py-4 rounded-full hover:from-blue-600 hover:to-blue-700 transform hover:scale-105 transition-all shadow-lg hover:shadow-xl"
+              className="inline-block bg-linear-to-r from-blue-500 to-blue-600 text-white text-xl font-bold px-12 py-4 rounded-full hover:from-blue-600 hover:to-blue-700 transform hover:scale-105 transition-all shadow-lg hover:shadow-xl"
             >
               🎮 Start Playing Now!
             </Link>

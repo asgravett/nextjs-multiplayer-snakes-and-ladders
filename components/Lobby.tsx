@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { RoomInfo } from '@/lib/types';
+import { useLocalStorage } from '@/hooks';
 import {
   Button,
   Card,
@@ -24,7 +25,7 @@ export default function Lobby({
   onJoinRoom,
   error,
 }: LobbyProps) {
-  const [playerName, setPlayerName] = useState('');
+  const [playerName, setPlayerName] = useLocalStorage('snl_player_name', '');
   const [roomName, setRoomName] = useState('');
   const [isCreating, setIsCreating] = useState(false);
 

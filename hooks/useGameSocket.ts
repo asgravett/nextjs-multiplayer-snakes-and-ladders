@@ -26,6 +26,28 @@ interface SocketErrorHandler {
   onReconnect?: () => void;
 }
 
+// ─── Persistent identity & rejoin helpers (client-side only) ───────────────────
+
+function getOrCreateClientId(): string {
+  if (typeof window === 'undefined') return '';
+  const stored = localStorage.getItem('snl_client_id');
+  if (stored) return stored;
+  const id = `client_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+  localStorage.setItem('snl_client_id', id);
+  return id;
+}
+
+function getRejoinRoomId(): string | null {
+  if (typeof window === 'undefined') return null;
+  return localStorage.getItem('snl_rejoin_room_id');
+}
+
+function setRejoinRoomId(roomId: string | null): void {
+  if (typeof window === 'undefined') return;
+  if (roomId) localStorage.setItem('snl_rejoin_room_id', roomId);
+  else localStorage.removeItem('snl_rejoin_room_id');
+}
+
 export function useGameSocket(errorHandler?: SocketErrorHandler) {
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [lastRollInfo, setLastRollInfo] = useState<LastRollInfo | null>(null);
@@ -40,8 +62,10 @@ export function useGameSocket(errorHandler?: SocketErrorHandler) {
   const socketRef = useRef<TypedSocket | null>(null);
   const reconnectAttempts = useRef(0);
   const maxReconnectAttempts = 5;
+  const clientIdRef = useRef<string>('');
 
   useEffect(() => {
+    clientIdRef.current = getOrCreateClientId();
     const socket: TypedSocket = io(
       process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:4000',
       {
@@ -62,6 +86,15 @@ export function useGameSocket(errorHandler?: SocketErrorHandler) {
       setIsConnected(true);
       setIsReconnecting(false);
       reconnectAttempts.current = 0;
+
+      // Attempt to rejoin a room from a previous session
+      const rejoinRoomId = getRejoinRoomId();
+      if (rejoinRoomId && clientIdRef.current) {
+        socket.emit('rejoinRoom', {
+          roomId: rejoinRoomId,
+          clientId: clientIdRef.current,
+        });
+      }
 
       // Notify successful reconnection
       errorHandler?.onReconnect?.();
@@ -122,6 +155,19 @@ export function useGameSocket(errorHandler?: SocketErrorHandler) {
       setCurrentRoomId(data.roomId);
       setIsHost(data.room.host === socket.id);
       setGameState(data.room.gameState);
+      // Persist so we can attempt a rejoin after an unexpected disconnect
+      setRejoinRoomId(data.roomId);
+    });
+
+    socket.on('hostChanged', (data) => {
+      setIsHost(data.newHostId === socket.id);
+    });
+
+    socket.on('rejoinFailed', (data) => {
+      console.log('Rejoin failed:', data.reason);
+      setRejoinRoomId(null);
+      setError(`Could not rejoin room: ${data.reason}`);
+      setTimeout(() => setError(null), 4000);
     });
 
     socket.on('gameState', (data) => {
@@ -173,6 +219,7 @@ export function useGameSocket(errorHandler?: SocketErrorHandler) {
       setGameState(null);
       setIsHost(false);
       setLastRollInfo(null);
+      setRejoinRoomId(null);
     });
 
     return () => {
@@ -187,6 +234,8 @@ export function useGameSocket(errorHandler?: SocketErrorHandler) {
       socket.off('gameReset');
       socket.off('error');
       socket.off('roomLeft');
+      socket.off('hostChanged');
+      socket.off('rejoinFailed');
       socket.io.off('reconnect');
       socket.io.off('reconnect_attempt');
       socket.io.off('reconnect_failed');
@@ -195,11 +244,19 @@ export function useGameSocket(errorHandler?: SocketErrorHandler) {
   }, [errorHandler]);
 
   const createRoom = useCallback((roomName: string, playerName: string) => {
-    socketRef.current?.emit('createRoom', { roomName, playerName });
+    socketRef.current?.emit('createRoom', {
+      roomName,
+      playerName,
+      clientId: clientIdRef.current,
+    });
   }, []);
 
   const joinRoom = useCallback((roomId: string, playerName: string) => {
-    socketRef.current?.emit('joinRoom', { roomId, playerName });
+    socketRef.current?.emit('joinRoom', {
+      roomId,
+      playerName,
+      clientId: clientIdRef.current,
+    });
   }, []);
 
   const startGame = useCallback(() => {
@@ -227,6 +284,7 @@ export function useGameSocket(errorHandler?: SocketErrorHandler) {
       setGameState(null);
       setIsHost(false);
       setLastRollInfo(null);
+      setRejoinRoomId(null);
     }
   }, [currentRoomId]);
 

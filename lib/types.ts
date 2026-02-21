@@ -3,6 +3,8 @@ export type Player = {
   id: string;
   position: number;
   name: string;
+  clientId: string;
+  disconnected?: boolean;
 };
 
 // Game state
