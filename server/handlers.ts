@@ -1,3 +1,4 @@
+import { randomBytes } from 'crypto';
 import { Socket } from 'socket.io';
 import {
   createRoomSchema,
@@ -14,7 +15,7 @@ import {
   validateMinimumPlayers,
 } from '@/lib/validation';
 import { applyRoll, rollDice } from '@/lib/logic';
-import { GameErrors } from '@/lib/gameErrors';
+import { GameError, GameErrors } from '@/lib/gameErrors';
 import { GAME_CONFIG } from '@/lib/constants';
 import { roomManager } from './roomManager';
 import type {
@@ -39,23 +40,48 @@ type TypedServer = Server<
   SocketData
 >;
 
-// Error handler with proper typing
+// Error handler with proper typing — only forward expected GameError messages to clients
 const handleError = (socket: TypedSocket, error: unknown): void => {
-  const message = error instanceof Error ? error.message : 'Unknown error';
-
-  console.error(`[Socket ${socket.id}] Error:`, message);
-  socket.emit('error', { message });
+  if (error instanceof GameError) {
+    socket.emit('error', { message: error.message });
+  } else {
+    console.error(`[Socket ${socket.id}] Unexpected error:`, error);
+    socket.emit('error', { message: 'An unexpected error occurred' });
+  }
 };
 
-// Generate unique room ID
+// Generate unique room ID using cryptographically secure random bytes
 const generateRoomId = (): string => {
-  return `room_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+  return `room_${Date.now()}_${randomBytes(4).toString('hex')}`;
 };
 
 export const createHandlers = (io: TypedServer) => {
   const broadcastRoomsList = (): void => {
     io.emit('roomsList', roomManager.getRoomsInfo());
   };
+
+  // Maximum total rooms to prevent memory exhaustion
+  const MAX_ROOMS = 50;
+
+  // Simple per-socket rate limiter: maxCalls allowed per windowMs
+  const makeRateLimiter = (maxCalls: number, windowMs: number) => {
+    const buckets = new Map<string, { count: number; resetAt: number }>();
+    return (socketId: string): boolean => {
+      const now = Date.now();
+      const b = buckets.get(socketId);
+      if (!b || now >= b.resetAt) {
+        buckets.set(socketId, { count: 1, resetAt: now + windowMs });
+        return true;
+      }
+      if (b.count >= maxCalls) return false;
+      b.count++;
+      return true;
+    };
+  };
+
+  const createRoomLimiter = makeRateLimiter(5, 60_000); // 5 per minute
+  const joinRoomLimiter = makeRateLimiter(10, 60_000); // 10 per minute
+  const rollDiceLimiter = makeRateLimiter(60, 60_000); // 60 per minute
 
   // Grace period before a mid-game disconnected player is permanently removed
   const REJOIN_GRACE_MS = 120_000; // 2 minutes
@@ -65,14 +91,29 @@ export const createHandlers = (io: TypedServer) => {
   return {
     handleCreateRoom: (socket: TypedSocket, data: unknown): void => {
       try {
+        if (!createRoomLimiter(socket.id)) {
+          throw new GameError(
+            'Too many requests. Please slow down.',
+            'RATE_LIMITED',
+          );
+        }
+
         const { roomName, playerName, clientId } = validateSocketData(
           createRoomSchema,
           data,
         );
 
+        if (roomManager.getAll().length >= MAX_ROOMS) {
+          throw new GameError(
+            'Server is at capacity. Try again later.',
+            'SERVER_FULL',
+          );
+        }
+
         const roomId = generateRoomId();
 
         socket.join(roomId);
+        roomManager.create(roomId, roomName, socket.id);
         roomManager.addPlayer(roomId, socket.id, playerName, clientId);
 
         socket.emit('roomJoined', { roomId, room: roomManager.get(roomId)! });
@@ -86,6 +127,13 @@ export const createHandlers = (io: TypedServer) => {
 
     handleJoinRoom: (socket: TypedSocket, data: unknown): void => {
       try {
+        if (!joinRoomLimiter(socket.id)) {
+          throw new GameError(
+            'Too many requests. Please slow down.',
+            'RATE_LIMITED',
+          );
+        }
+
         const { roomId, playerName, clientId } = validateSocketData(
           joinRoomSchema,
           data,
@@ -143,6 +191,13 @@ export const createHandlers = (io: TypedServer) => {
 
     handleRollDice: (socket: TypedSocket, data: unknown): void => {
       try {
+        if (!rollDiceLimiter(socket.id)) {
+          throw new GameError(
+            'Too many requests. Please slow down.',
+            'RATE_LIMITED',
+          );
+        }
+
         const { roomId } = validateSocketData(roomIdSchema, data);
         const room = roomManager.get(roomId);
 
@@ -218,6 +273,11 @@ export const createHandlers = (io: TypedServer) => {
           room.gameState.playerOrder = room.gameState.playerOrder.filter(
             (id) => id !== socket.id,
           );
+
+          // If the leaving player was holding the turn, advance to the next player
+          if (room.gameState.currentTurn === socket.id) {
+            room.gameState.currentTurn = room.gameState.playerOrder[0] ?? null;
+          }
 
           // Notify the leaving player
           socket.emit('roomLeft');

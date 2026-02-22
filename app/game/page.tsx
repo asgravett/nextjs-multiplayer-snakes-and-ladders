@@ -128,14 +128,25 @@ export default function GamePage() {
     );
   }
 
-  // In room, waiting for game to start
+  // In room, waiting for game to start (guard against gameState not yet arrived)
   if (!gameState?.gameStarted) {
+    if (!gameState) {
+      return (
+        <div className="min-h-screen bg-linear-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+          <Card variant="elevated" className="p-8">
+            <CardContent className="flex flex-col items-center gap-4">
+              <LoadingSpinner size="lg" label="Joining room..." />
+            </CardContent>
+          </Card>
+        </div>
+      );
+    }
     return (
       <div className="min-h-screen bg-linear-to-br from-blue-50 to-indigo-100">
         <GameHeader title="Waiting Room" subtitle={`Room: ${currentRoomId}`} />
         <div className="py-8 px-4">
           <WaitingRoom
-            gameState={gameState!}
+            gameState={gameState}
             isHost={isHost}
             onStartGame={startGame}
             onLeaveRoom={leaveRoom}

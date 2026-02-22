@@ -153,8 +153,8 @@ export function useGameSocket(errorHandler?: SocketErrorHandler) {
 
     socket.on('roomJoined', (data) => {
       setCurrentRoomId(data.roomId);
-      setIsHost(data.room.host === socket.id);
-      setGameState(data.room.gameState);
+      setIsHost(data.room?.host === socket.id);
+      setGameState(data.room?.gameState ?? null);
       // Persist so we can attempt a rejoin after an unexpected disconnect
       setRejoinRoomId(data.roomId);
     });

@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button, Card, CardContent } from '@/components/ui';
+import * as Sentry from '@sentry/nextjs';
 
 interface GlobalErrorProps {
   error: Error & { digest?: string };
@@ -13,8 +14,7 @@ export default function GlobalError({ error, reset }: GlobalErrorProps) {
   const router = useRouter();
 
   useEffect(() => {
-    // Log error to console (or send to monitoring service)
-    console.error('Global error:', error);
+    Sentry.captureException(error);
   }, [error]);
 
   return (
