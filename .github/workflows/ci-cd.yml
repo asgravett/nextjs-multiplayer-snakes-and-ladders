@@ -1,0 +1,201 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '24.8.0'
+
+jobs:
+  # ─── Lint & Test ────────────────────────────────────────────────────────────
+  test:
+    name: Lint & Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ESLint
+        run: npm run lint
+
+      - name: Run tests
+        run: npm run test -- --ci --coverage
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage/
+          retention-days: 14
+
+  # ─── Build Next.js (Frontend) ──────────────────────────────────────────────
+  build-frontend:
+    name: Build Frontend
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Next.js
+        run: npm run build
+        env:
+          NEXT_PUBLIC_SOCKET_URL: ${{ secrets.NEXT_PUBLIC_SOCKET_URL }}
+          NEXT_PUBLIC_SENTRY_DSN: ${{ secrets.NEXT_PUBLIC_SENTRY_DSN }}
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+
+  # ─── Build Socket.IO Server (Backend) ─────────────────────────────────────
+  build-backend:
+    name: Build Backend
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build server
+        run: npm run server:build
+
+      - name: Upload server artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: server-dist
+          path: dist/
+          retention-days: 7
+
+  # ─── Deploy Frontend to Vercel ─────────────────────────────────────────────
+  deploy-frontend:
+    name: Deploy Frontend (Vercel)
+    needs: [build-frontend, build-backend]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install Vercel CLI
+        run: npm install -g vercel
+
+      - name: Pull Vercel environment
+        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Build with Vercel
+        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+        env:
+          NEXT_PUBLIC_SOCKET_URL: ${{ secrets.NEXT_PUBLIC_SOCKET_URL }}
+          NEXT_PUBLIC_SENTRY_DSN: ${{ secrets.NEXT_PUBLIC_SENTRY_DSN }}
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+
+      - name: Deploy to Vercel Production
+        id: vercel-deploy
+        run: |
+          DEPLOY_URL=$(vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }})
+          echo "deploy_url=$DEPLOY_URL" >> "$GITHUB_OUTPUT"
+
+    outputs:
+      deploy_url: ${{ steps.vercel-deploy.outputs.deploy_url }}
+
+  # ─── Deploy Backend to Railway ─────────────────────────────────────────────
+  deploy-backend:
+    name: Deploy Backend (Railway)
+    needs: [build-frontend, build-backend]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
+
+      - name: Set Railway environment variables
+        run: |
+          railway variables set CORS_ORIGIN=${{ secrets.CORS_ORIGIN }} --service ${{ secrets.RAILWAY_SERVICE_ID }}
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+
+      - name: Deploy to Railway
+        run: railway up --service ${{ secrets.RAILWAY_SERVICE_ID }}
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+
+  # ─── Notify ────────────────────────────────────────────────────────────────
+  notify:
+    name: Notify
+    needs: [deploy-frontend, deploy-backend]
+    runs-on: ubuntu-latest
+    if: always() && github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Determine overall status
+        id: status
+        run: |
+          if [[ "${{ needs.deploy-frontend.result }}" == "success" && "${{ needs.deploy-backend.result }}" == "success" ]]; then
+            echo "status=success" >> "$GITHUB_OUTPUT"
+            echo "emoji=✅" >> "$GITHUB_OUTPUT"
+            echo "message=All deployments succeeded" >> "$GITHUB_OUTPUT"
+          else
+            echo "status=failure" >> "$GITHUB_OUTPUT"
+            echo "emoji=❌" >> "$GITHUB_OUTPUT"
+            echo "message=One or more deployments failed" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Discord notification (uncomment and add DISCORD_WEBHOOK_URL secret)
+      - name: Notify Discord
+        if: always()
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: |
+          curl -H "Content-Type: application/json" \
+            -d "{\"content\": \"${{ steps.status.outputs.emoji }} **Snakes & Ladders CI/CD**\n**Branch:** \`${{ github.ref_name }}\`\n**Commit:** \`${{ github.sha }}\` by ${{ github.actor }}\n**Status:** ${{ steps.status.outputs.message }}\n**Frontend:** ${{ needs.deploy-frontend.outputs.deploy_url || 'N/A' }}\"}" \
+            $DISCORD_WEBHOOK

@@ -24,6 +24,7 @@
 # misc
 .DS_Store
 *.pem
+/notes
 
 # debug
 npm-debug.log*
@@ -33,6 +34,7 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env.local
+.env*.local
 
 # vercel
 .vercel
@@ -40,7 +42,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
-CHECKLIST.md
 # Sentry Config File
 .env.sentry-build-plugin
 # GitHub Copilot instructions (local dev tooling, not for source control)
