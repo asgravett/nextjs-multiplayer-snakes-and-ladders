@@ -158,14 +158,13 @@ jobs:
       - name: Install Railway CLI
         run: npm install -g @railway/cli
 
-      - name: Set Railway environment variables
-        run: |
-          railway variables set CORS_ORIGIN=${{ secrets.CORS_ORIGIN }} --service ${{ secrets.RAILWAY_SERVICE_ID }}
+      - name: Debug Auth
+        run: railway whoami --project ${{ secrets.RAILWAY_PROJECT_ID }}
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
 
       - name: Deploy to Railway
-        run: railway up --service ${{ secrets.RAILWAY_SERVICE_ID }}
+        run: railway deploy --project ${{ secrets.RAILWAY_PROJECT_ID }}
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
 
