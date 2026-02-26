@@ -196,6 +196,11 @@ jobs:
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL }}
         run: |
+          FRONTEND_RESULT="${{ needs.deploy-frontend.result }}"
+          BACKEND_RESULT="${{ needs.deploy-backend.result }}"
+          FE_ICON=$([[ "$FRONTEND_RESULT" == "success" ]] && echo "✅" || echo "❌")
+          BE_ICON=$([[ "$BACKEND_RESULT" == "success" ]] && echo "✅" || echo "❌")
+
           curl -H "Content-Type: application/json" \
-            -d "{\"content\": \"${{ steps.status.outputs.emoji }} **Snakes & Ladders CI/CD**\n**Branch:** \`${{ github.ref_name }}\`\n**Commit:** \`${{ github.sha }}\` by ${{ github.actor }}\n**Status:** ${{ steps.status.outputs.message }}\n**Frontend:** ${{ needs.deploy-frontend.outputs.deploy_url || 'N/A' }}\"}" \
+            -d "{\"content\": \"${{ steps.status.outputs.emoji }} **Snakes & Ladders CI/CD**\n**Branch:** \`${{ github.ref_name }}\`\n**Commit:** \`${{ github.sha }}\` by ${{ github.actor }}\n**Status:** ${{ steps.status.outputs.message }}\n${FE_ICON} **Frontend (Vercel):** ${FRONTEND_RESULT} — ${{ needs.deploy-frontend.outputs.deploy_url || 'N/A' }}\n${BE_ICON} **Backend (Railway):** ${BACKEND_RESULT}\"}" \
             $DISCORD_WEBHOOK
