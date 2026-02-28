@@ -56,8 +56,8 @@ const generateRoomId = (): string => {
 };
 
 export const createHandlers = (io: TypedServer) => {
-  const broadcastRoomsList = (): void => {
-    io.emit('roomsList', roomManager.getRoomsInfo());
+  const broadcastRoomsList = async (): Promise<void> => {
+    io.emit('roomsList', await roomManager.getRoomsInfo());
   };
 
   // Maximum total rooms to prevent memory exhaustion
@@ -89,7 +89,10 @@ export const createHandlers = (io: TypedServer) => {
   const disconnectTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
   return {
-    handleCreateRoom: (socket: TypedSocket, data: unknown): void => {
+    handleCreateRoom: async (
+      socket: TypedSocket,
+      data: unknown,
+    ): Promise<void> => {
       try {
         if (!createRoomLimiter(socket.id)) {
           throw new GameError(
@@ -103,7 +106,8 @@ export const createHandlers = (io: TypedServer) => {
           data,
         );
 
-        if (roomManager.getAll().length >= MAX_ROOMS) {
+        const allRooms = await roomManager.getAll();
+        if (allRooms.length >= MAX_ROOMS) {
           throw new GameError(
             'Server is at capacity. Try again later.',
             'SERVER_FULL',
@@ -113,11 +117,12 @@ export const createHandlers = (io: TypedServer) => {
         const roomId = generateRoomId();
 
         socket.join(roomId);
-        roomManager.create(roomId, roomName, socket.id);
-        roomManager.addPlayer(roomId, socket.id, playerName, clientId);
+        await roomManager.create(roomId, roomName, socket.id);
+        await roomManager.addPlayer(roomId, socket.id, playerName, clientId);
 
-        socket.emit('roomJoined', { roomId, room: roomManager.get(roomId)! });
-        broadcastRoomsList();
+        const room = await roomManager.get(roomId);
+        socket.emit('roomJoined', { roomId, room: room! });
+        await broadcastRoomsList();
 
         console.log(`[Room ${roomId}] Created by ${playerName} (${socket.id})`);
       } catch (error) {
@@ -125,7 +130,10 @@ export const createHandlers = (io: TypedServer) => {
       }
     },
 
-    handleJoinRoom: (socket: TypedSocket, data: unknown): void => {
+    handleJoinRoom: async (
+      socket: TypedSocket,
+      data: unknown,
+    ): Promise<void> => {
       try {
         if (!joinRoomLimiter(socket.id)) {
           throw new GameError(
@@ -138,7 +146,7 @@ export const createHandlers = (io: TypedServer) => {
           joinRoomSchema,
           data,
         );
-        const room = roomManager.get(roomId);
+        const room = await roomManager.get(roomId);
 
         validateRoomExists(room, roomId);
         validateRoomNotFull(
@@ -151,12 +159,12 @@ export const createHandlers = (io: TypedServer) => {
         }
 
         socket.join(roomId);
-        roomManager.addPlayer(roomId, socket.id, playerName, clientId);
+        await roomManager.addPlayer(roomId, socket.id, playerName, clientId);
 
-        const updatedRoom = roomManager.get(roomId)!;
+        const updatedRoom = (await roomManager.get(roomId))!;
         socket.emit('roomJoined', { roomId, room: updatedRoom });
         io.to(roomId).emit('gameState', updatedRoom.gameState);
-        broadcastRoomsList();
+        await broadcastRoomsList();
 
         console.log(`[Room ${roomId}] ${playerName} (${socket.id}) joined`);
       } catch (error) {
@@ -164,10 +172,13 @@ export const createHandlers = (io: TypedServer) => {
       }
     },
 
-    handleStartGame: (socket: TypedSocket, data: unknown): void => {
+    handleStartGame: async (
+      socket: TypedSocket,
+      data: unknown,
+    ): Promise<void> => {
       try {
         const { roomId } = validateSocketData(roomIdSchema, data);
-        const room = roomManager.get(roomId);
+        const room = await roomManager.get(roomId);
 
         validateRoomExists(room, roomId);
         validateIsHost(room!.host, socket.id);
@@ -179,9 +190,10 @@ export const createHandlers = (io: TypedServer) => {
 
         room!.gameState.gameStarted = true;
         room!.gameState.currentTurn = room!.gameState.playerOrder[0];
+        await roomManager.save(room!);
 
         io.to(roomId).emit('gameState', room!.gameState);
-        broadcastRoomsList();
+        await broadcastRoomsList();
 
         console.log(`[Room ${roomId}] Game started`);
       } catch (error) {
@@ -189,7 +201,10 @@ export const createHandlers = (io: TypedServer) => {
       }
     },
 
-    handleRollDice: (socket: TypedSocket, data: unknown): void => {
+    handleRollDice: async (
+      socket: TypedSocket,
+      data: unknown,
+    ): Promise<void> => {
       try {
         if (!rollDiceLimiter(socket.id)) {
           throw new GameError(
@@ -199,7 +214,7 @@ export const createHandlers = (io: TypedServer) => {
         }
 
         const { roomId } = validateSocketData(roomIdSchema, data);
-        const room = roomManager.get(roomId);
+        const room = await roomManager.get(roomId);
 
         validateRoomExists(room, roomId);
         validateGameStarted(room!.gameState.gameStarted);
@@ -226,6 +241,8 @@ export const createHandlers = (io: TypedServer) => {
           );
         }
 
+        await roomManager.save(room!);
+
         io.to(roomId).emit('gameState', room!.gameState);
         io.to(roomId).emit('diceRolled', {
           playerId: socket.id,
@@ -237,10 +254,13 @@ export const createHandlers = (io: TypedServer) => {
       }
     },
 
-    handleResetGame: (socket: TypedSocket, data: unknown): void => {
+    handleResetGame: async (
+      socket: TypedSocket,
+      data: unknown,
+    ): Promise<void> => {
       try {
         const { roomId } = validateSocketData(roomIdSchema, data);
-        const room = roomManager.get(roomId);
+        const room = await roomManager.get(roomId);
 
         validateRoomExists(room, roomId);
         validateIsHost(room!.host, socket.id);
@@ -252,6 +272,7 @@ export const createHandlers = (io: TypedServer) => {
         room!.gameState.winner = null;
         room!.gameState.currentTurn = room!.gameState.playerOrder[0];
         room!.gameState.gameStarted = true;
+        await roomManager.save(room!);
 
         io.to(roomId).emit('gameState', room!.gameState);
         io.to(roomId).emit('gameReset');
@@ -262,10 +283,13 @@ export const createHandlers = (io: TypedServer) => {
       }
     },
 
-    handleLeaveRoom: (socket: TypedSocket, data: unknown): void => {
+    handleLeaveRoom: async (
+      socket: TypedSocket,
+      data: unknown,
+    ): Promise<void> => {
       try {
         const { roomId } = validateSocketData(roomIdSchema, data);
-        const room = roomManager.get(roomId);
+        const room = await roomManager.get(roomId);
 
         if (room) {
           socket.leave(roomId);
@@ -284,7 +308,7 @@ export const createHandlers = (io: TypedServer) => {
 
           // If room is empty, delete it
           if (Object.keys(room.gameState.players).length === 0) {
-            roomManager.delete(roomId);
+            await roomManager.delete(roomId);
           } else {
             // Assign new host if needed
             if (room.host === socket.id) {
@@ -292,12 +316,14 @@ export const createHandlers = (io: TypedServer) => {
               io.to(roomId).emit('hostChanged', { newHostId: room.host });
             }
 
+            await roomManager.save(room);
+
             // Update remaining players
             io.to(roomId).emit('gameState', room.gameState);
           }
 
           // Update room list for everyone
-          broadcastRoomsList();
+          await broadcastRoomsList();
 
           console.log(`Player ${socket.id} left room ${roomId}`);
         }
@@ -306,17 +332,20 @@ export const createHandlers = (io: TypedServer) => {
       }
     },
 
-    handleRejoinRoom: (socket: TypedSocket, data: unknown): void => {
+    handleRejoinRoom: async (
+      socket: TypedSocket,
+      data: unknown,
+    ): Promise<void> => {
       try {
         const { roomId, clientId } = validateSocketData(rejoinRoomSchema, data);
-        const room = roomManager.get(roomId);
+        const room = await roomManager.get(roomId);
 
         if (!room) {
           socket.emit('rejoinFailed', { reason: 'Room no longer exists' });
           return;
         }
 
-        const player = roomManager.findPlayerByClientId(roomId, clientId);
+        const player = await roomManager.findPlayerByClientId(roomId, clientId);
         if (!player || !player.disconnected) {
           socket.emit('rejoinFailed', {
             reason: 'No disconnected session found in this room',
@@ -334,14 +363,14 @@ export const createHandlers = (io: TypedServer) => {
         }
 
         // Re-bind the player to their new socket ID
-        roomManager.reconnectPlayer(roomId, oldSocketId, socket.id);
+        await roomManager.reconnectPlayer(roomId, oldSocketId, socket.id);
 
         socket.join(roomId);
 
-        const updatedRoom = roomManager.get(roomId)!;
+        const updatedRoom = (await roomManager.get(roomId))!;
         socket.emit('roomJoined', { roomId, room: updatedRoom });
         io.to(roomId).emit('gameState', updatedRoom.gameState);
-        broadcastRoomsList();
+        await broadcastRoomsList();
 
         console.log(
           `[Room ${roomId}] Player ${socket.id} rejoined (was ${oldSocketId})`,
@@ -351,8 +380,8 @@ export const createHandlers = (io: TypedServer) => {
       }
     },
 
-    handleDisconnect: (socket: TypedSocket): void => {
-      const room = roomManager.findPlayerRoom(socket.id);
+    handleDisconnect: async (socket: TypedSocket): Promise<void> => {
+      const room = await roomManager.findPlayerRoom(socket.id);
 
       if (room) {
         const player = room.gameState.players[socket.id];
@@ -361,57 +390,63 @@ export const createHandlers = (io: TypedServer) => {
 
         if (isMidGame && player) {
           // Keep the slot — mark as disconnected so turn logic skips them
-          roomManager.markPlayerDisconnected(room.id, socket.id);
+          await roomManager.markPlayerDisconnected(room.id, socket.id);
+
+          // Re-fetch room after the write
+          const updatedRoom = (await roomManager.get(room.id))!;
 
           // Skip their turn if the game is waiting on them
-          if (room.gameState.currentTurn === socket.id) {
-            room.gameState.currentTurn = roomManager.getNextActiveTurn(
-              room.gameState,
+          if (updatedRoom.gameState.currentTurn === socket.id) {
+            updatedRoom.gameState.currentTurn = roomManager.getNextActiveTurn(
+              updatedRoom.gameState,
               socket.id,
             );
+            await roomManager.save(updatedRoom);
           }
 
           // Transfer host to a connected player
           if (wasHost) {
-            const nextActive = room.gameState.playerOrder.find(
+            const nextActive = updatedRoom.gameState.playerOrder.find(
               (id) =>
-                id !== socket.id && !room.gameState.players[id]?.disconnected,
+                id !== socket.id &&
+                !updatedRoom.gameState.players[id]?.disconnected,
             );
             if (nextActive) {
-              room.host = nextActive;
+              updatedRoom.host = nextActive;
+              await roomManager.save(updatedRoom);
               io.to(room.id).emit('hostChanged', { newHostId: nextActive });
             }
           }
 
-          io.to(room.id).emit('gameState', room.gameState);
+          io.to(room.id).emit('gameState', updatedRoom.gameState);
 
           // Schedule permanent eviction after the grace period
           const existing = disconnectTimers.get(player.clientId);
           if (existing) clearTimeout(existing);
 
-          const timer = setTimeout(() => {
+          const timer = setTimeout(async () => {
             disconnectTimers.delete(player.clientId);
-            const currentRoom = roomManager.get(room.id);
+            const currentRoom = await roomManager.get(room.id);
             if (!currentRoom) return;
 
             // Find the player by clientId — their socketId may have changed if they rejoined
-            const currentPlayer = roomManager.findPlayerByClientId(
+            const currentPlayer = await roomManager.findPlayerByClientId(
               room.id,
               player.clientId,
             );
             if (!currentPlayer || !currentPlayer.disconnected) return; // Already rejoined
 
-            const roomDeleted = roomManager.removePlayer(
+            const roomDeleted = await roomManager.removePlayer(
               room.id,
               currentPlayer.id,
             );
             if (!roomDeleted) {
-              io.to(room.id).emit(
-                'gameState',
-                roomManager.get(room.id)!.gameState,
-              );
+              const freshRoom = await roomManager.get(room.id);
+              if (freshRoom) {
+                io.to(room.id).emit('gameState', freshRoom.gameState);
+              }
             }
-            broadcastRoomsList();
+            await broadcastRoomsList();
             console.log(
               `[Room ${room.id}] Player ${currentPlayer.id} evicted after grace period`,
             );
@@ -420,9 +455,12 @@ export const createHandlers = (io: TypedServer) => {
           disconnectTimers.set(player.clientId, timer);
         } else {
           // Pre-game or game over: remove immediately (existing behaviour)
-          const roomDeleted = roomManager.removePlayer(room.id, socket.id);
+          const roomDeleted = await roomManager.removePlayer(
+            room.id,
+            socket.id,
+          );
           if (!roomDeleted) {
-            const updatedRoom = roomManager.get(room.id)!;
+            const updatedRoom = (await roomManager.get(room.id))!;
             if (wasHost) {
               io.to(room.id).emit('hostChanged', {
                 newHostId: updatedRoom.host,
@@ -432,7 +470,7 @@ export const createHandlers = (io: TypedServer) => {
           }
         }
 
-        broadcastRoomsList();
+        await broadcastRoomsList();
         console.log(`[Room ${room.id}] Player ${socket.id} disconnected`);
       }
 

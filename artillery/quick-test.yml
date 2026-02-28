@@ -1,0 +1,17 @@
+# Quick smoke test — 5 seconds, 3 users/sec
+config:
+  target: 'http://localhost:4000'
+  processor: './processor.js'
+  phases:
+    - duration: 5
+      arrivalRate: 3
+
+scenarios:
+  - name: 'Connect and browse'
+    flow:
+      - function: 'connectSocket'
+      - function: 'waitForRoomsList'
+      - function: 'createRoom'
+      - function: 'think'
+      - function: 'leaveRoom'
+      - function: 'disconnectSocket'

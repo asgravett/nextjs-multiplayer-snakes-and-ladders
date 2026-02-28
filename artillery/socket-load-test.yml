@@ -1,0 +1,89 @@
+# Artillery Load Test — Socket.IO Server
+#
+# Tests connection capacity and basic event throughput against the
+# Socket.IO game server using WebSocket-only transport.
+#
+# Uses a custom processor (processor.js) because Artillery's built-in
+# socketio engine doesn't reliably force WebSocket-only transport.
+#
+# Usage:
+#   npm run load-test:artillery                         # default test
+#   npm run load-test:artillery -- -e stress            # stress test
+#   npm run load-test:artillery -- -o report.json       # save report
+#   npx artillery report report.json                    # view HTML report
+#
+# Requires the server to be running: npm run server
+
+config:
+  target: "http://localhost:4000"
+  processor: "./processor.js"
+  phases:
+    - name: "Warm up"
+      duration: 10
+      arrivalRate: 5
+    - name: "Ramp up"
+      duration: 20
+      arrivalRate: 5
+      rampTo: 20
+    - name: "Sustained load"
+      duration: 30
+      arrivalRate: 20
+    - name: "Cool down"
+      duration: 10
+      arrivalRate: 5
+
+  environments:
+    stress:
+      phases:
+        - name: "Warm up"
+          duration: 10
+          arrivalRate: 10
+        - name: "Ramp to peak"
+          duration: 30
+          arrivalRate: 10
+          rampTo: 50
+        - name: "Sustained peak"
+          duration: 60
+          arrivalRate: 50
+        - name: "Spike"
+          duration: 10
+          arrivalRate: 100
+        - name: "Cool down"
+          duration: 10
+          arrivalRate: 5
+
+    soak:
+      phases:
+        - name: "Steady state"
+          duration: 300
+          arrivalRate: 10
+
+scenarios:
+  # Scenario 1: Connect, browse lobby, disconnect
+  - name: "Browse lobby"
+    flow:
+      - function: "connectSocket"
+      - function: "waitForRoomsList"
+      - function: "think"
+      - function: "disconnectSocket"
+
+  # Scenario 2: Create a room and wait in the waiting room
+  - name: "Create room and wait"
+    flow:
+      - function: "connectSocket"
+      - function: "waitForRoomsList"
+      - function: "createRoom"
+      - function: "think"
+      - function: "think"
+      - function: "leaveRoom"
+      - function: "disconnectSocket"
+
+  # Scenario 3: Rapid create → leave cycle
+  - name: "Create and leave"
+    flow:
+      - function: "connectSocket"
+      - function: "waitForRoomsList"
+      - function: "createRoom"
+      - function: "think"
+      - function: "leaveRoom"
+      - function: "disconnectSocket"

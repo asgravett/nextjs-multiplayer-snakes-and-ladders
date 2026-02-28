@@ -69,6 +69,7 @@ export function useGameSocket(errorHandler?: SocketErrorHandler) {
     const socket: TypedSocket = io(
       process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:4000',
       {
+        transports: ['websocket'],
         reconnection: true,
         reconnectionAttempts: maxReconnectAttempts,
         reconnectionDelay: 1000,

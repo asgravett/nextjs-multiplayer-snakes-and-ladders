@@ -1,10 +1,23 @@
 import { Room, GameState } from '@/lib/types';
 import { GAME_CONFIG } from '@/lib/constants';
+import { pubClient } from './redis';
+
+const ROOM_KEY_PREFIX = 'room:';
+const ROOM_TTL = Number(process.env.ROOM_TTL) || 3600; // seconds — auto-expiry for stale rooms
 
 export class RoomManager {
-  private rooms = new Map<string, Room>();
+  // ─── Key helpers ──────────────────────────────────────────────────────────
+  private key(roomId: string): string {
+    return `${ROOM_KEY_PREFIX}${roomId}`;
+  }
 
-  create(roomId: string, roomName: string, hostId: string): Room {
+  // ─── Core CRUD ────────────────────────────────────────────────────────────
+
+  async create(
+    roomId: string,
+    roomName: string,
+    hostId: string,
+  ): Promise<Room> {
     const room: Room = {
       id: roomId,
       name: roomName,
@@ -18,24 +31,38 @@ export class RoomManager {
         gameStarted: false,
       },
     };
-    this.rooms.set(roomId, room);
+    await this.save(room);
     return room;
   }
 
-  get(roomId: string): Room | undefined {
-    return this.rooms.get(roomId);
+  async get(roomId: string): Promise<Room | undefined> {
+    const data = await pubClient.get(this.key(roomId));
+    return data ? (JSON.parse(data as string) as Room) : undefined;
   }
 
-  delete(roomId: string): boolean {
-    return this.rooms.delete(roomId);
+  async save(room: Room): Promise<void> {
+    await pubClient.set(this.key(room.id), JSON.stringify(room), {
+      EX: ROOM_TTL,
+    });
   }
 
-  getAll(): Room[] {
-    return Array.from(this.rooms.values());
+  async delete(roomId: string): Promise<boolean> {
+    const result = await pubClient.del(this.key(roomId));
+    return Number(result) > 0;
   }
 
-  getRoomsInfo() {
-    return this.getAll().map((r) => ({
+  async getAll(): Promise<Room[]> {
+    const keys = await pubClient.keys(`${ROOM_KEY_PREFIX}*`);
+    if (keys.length === 0) return [];
+    const values = await pubClient.mGet(keys);
+    return values
+      .filter((v): v is string => v !== null)
+      .map((v) => JSON.parse(v) as Room);
+  }
+
+  async getRoomsInfo() {
+    const rooms = await this.getAll();
+    return rooms.map((r) => ({
       id: r.id,
       name: r.name,
       playerCount: Object.keys(r.gameState.players).length,
@@ -44,13 +71,15 @@ export class RoomManager {
     }));
   }
 
-  addPlayer(
+  // ─── Player management ────────────────────────────────────────────────────
+
+  async addPlayer(
     roomId: string,
     playerId: string,
     playerName: string,
     clientId: string,
-  ): void {
-    const room = this.get(roomId);
+  ): Promise<void> {
+    const room = await this.get(roomId);
     if (!room) return;
 
     room.gameState.players[playerId] = {
@@ -60,10 +89,11 @@ export class RoomManager {
       clientId,
     };
     room.gameState.playerOrder.push(playerId);
+    await this.save(room);
   }
 
-  removePlayer(roomId: string, playerId: string): boolean {
-    const room = this.get(roomId);
+  async removePlayer(roomId: string, playerId: string): Promise<boolean> {
+    const room = await this.get(roomId);
     if (!room) return false;
 
     delete room.gameState.players[playerId];
@@ -78,7 +108,7 @@ export class RoomManager {
 
     // Check if room is empty
     if (Object.keys(room.gameState.players).length === 0) {
-      this.delete(roomId);
+      await this.delete(roomId);
       return true; // Room deleted
     }
 
@@ -87,8 +117,11 @@ export class RoomManager {
       room.host = room.gameState.playerOrder[0];
     }
 
+    await this.save(room);
     return false; // Room still exists
   }
+
+  // ─── Turn helpers (pure — operate on a GameState snapshot) ────────────────
 
   getNextTurn(gameState: GameState): string | null {
     // Only consider connected (active) players
@@ -101,8 +134,6 @@ export class RoomManager {
     return activePlayers[nextIndex];
   }
 
-  // Returns the next active player after `afterPlayerId` in turn order,
-  // used when that player has just been marked disconnected.
   getNextActiveTurn(
     gameState: GameState,
     afterPlayerId: string,
@@ -119,32 +150,38 @@ export class RoomManager {
         return candidateId;
       }
     }
-    return null; // All players disconnected
+    return null;
   }
 
-  markPlayerDisconnected(roomId: string, socketId: string): void {
-    const room = this.get(roomId);
+  // ─── Disconnect / reconnect helpers ───────────────────────────────────────
+
+  async markPlayerDisconnected(
+    roomId: string,
+    socketId: string,
+  ): Promise<void> {
+    const room = await this.get(roomId);
     if (!room || !room.gameState.players[socketId]) return;
     room.gameState.players[socketId].disconnected = true;
+    await this.save(room);
   }
 
-  findPlayerByClientId(
+  async findPlayerByClientId(
     roomId: string,
     clientId: string,
-  ): GameState['players'][string] | undefined {
-    const room = this.get(roomId);
+  ): Promise<GameState['players'][string] | undefined> {
+    const room = await this.get(roomId);
     if (!room) return undefined;
     return Object.values(room.gameState.players).find(
       (p) => p.clientId === clientId,
     );
   }
 
-  reconnectPlayer(
+  async reconnectPlayer(
     roomId: string,
     oldSocketId: string,
     newSocketId: string,
-  ): void {
-    const room = this.get(roomId);
+  ): Promise<void> {
+    const room = await this.get(roomId);
     if (!room) return;
     const player = room.gameState.players[oldSocketId];
     if (!player) return;
@@ -159,19 +196,17 @@ export class RoomManager {
     const idx = room.gameState.playerOrder.indexOf(oldSocketId);
     if (idx !== -1) room.gameState.playerOrder[idx] = newSocketId;
 
-    // If it was their turn (e.g. turn was held while they were gone), update
+    // If it was their turn, update
     if (room.gameState.currentTurn === oldSocketId) {
       room.gameState.currentTurn = newSocketId;
     }
+
+    await this.save(room);
   }
 
-  findPlayerRoom(playerId: string): Room | undefined {
-    for (const room of this.rooms.values()) {
-      if (room.gameState.players[playerId]) {
-        return room;
-      }
-    }
-    return undefined;
+  async findPlayerRoom(playerId: string): Promise<Room | undefined> {
+    const rooms = await this.getAll();
+    return rooms.find((room) => room.gameState.players[playerId]);
   }
 }
 
