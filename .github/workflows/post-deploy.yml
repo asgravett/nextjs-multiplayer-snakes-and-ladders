@@ -8,8 +8,7 @@ jobs:
     name: Notify (Railway Server Deploy)
     runs-on: ubuntu-latest
     if: >-
-      always() &&
-      github.event.deployment_status.state != 'pending'
+      contains(fromJSON('["success","failure","error"]'), github.event.deployment_status.state)
 
     steps:
       - name: Determine deployment status
