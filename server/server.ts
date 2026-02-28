@@ -12,7 +12,12 @@ import { roomManager } from './roomManager';
 const PORT = process.env.PORT || 4000;
 const CORS_ORIGIN = process.env.CORS_ORIGIN || 'http://localhost:3000';
 
-const httpServer = createServer();
+const httpServer = createServer((req, res) => {
+  if (req.method === 'GET' && req.url === '/health') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ status: 'ok' }));
+  }
+});
 
 const io = new Server<
   ClientToServerEvents,

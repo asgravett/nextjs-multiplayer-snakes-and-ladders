@@ -1,0 +1,44 @@
+name: Post-Deployment Actions
+on:
+  deployment_status:
+
+jobs:
+  # ─── Notify ────────────────────────────────────────────────────────────────
+  notify:
+    name: Notify (Railway Server Deploy)
+    runs-on: ubuntu-latest
+    if: >-
+      always() &&
+      github.event.deployment_status.state != 'pending'
+
+    steps:
+      - name: Determine deployment status
+        id: status
+        run: |
+          STATE="${{ github.event.deployment_status.state }}"
+          ENV="${{ github.event.deployment.environment }}"
+
+          if [[ "$STATE" == "success" ]]; then
+            echo "emoji=✅" >> "$GITHUB_OUTPUT"
+            echo "message=Server deployment succeeded" >> "$GITHUB_OUTPUT"
+          else
+            echo "emoji=❌" >> "$GITHUB_OUTPUT"
+            echo "message=Server deployment failed (${STATE})" >> "$GITHUB_OUTPUT"
+          fi
+
+          echo "state=$STATE" >> "$GITHUB_OUTPUT"
+          echo "environment=$ENV" >> "$GITHUB_OUTPUT"
+
+      - name: Notify Discord
+        if: always()
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: |
+          STATE="${{ steps.status.outputs.state }}"
+          ICON=$([[ "$STATE" == "success" ]] && echo "✅" || echo "❌")
+          ENV="${{ steps.status.outputs.environment }}"
+          TARGET_URL="${{ github.event.deployment_status.target_url }}"
+
+          curl -H "Content-Type: application/json" \
+            -d "{\"content\": \"${{ steps.status.outputs.emoji }} **Snakes & Ladders — Railway Server Deploy**\n**Environment:** \`${ENV}\`\n**Commit:** \`${{ github.sha }}\` by ${{ github.actor }}\n**Status:** ${{ steps.status.outputs.message }}\n${ICON} **Server (Railway):** ${STATE} — ${TARGET_URL:-N/A}\"}" \
+            $DISCORD_WEBHOOK

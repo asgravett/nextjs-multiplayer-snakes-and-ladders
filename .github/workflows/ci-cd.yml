@@ -144,29 +144,10 @@ jobs:
     outputs:
       deploy_url: ${{ steps.vercel-deploy.outputs.deploy_url }}
 
-  # ─── Deploy Backend to Railway ─────────────────────────────────────────────
-  deploy-backend:
-    name: Deploy Backend (Railway)
-    needs: [build-frontend, build-backend]
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Install Railway CLI
-        run: npm install -g @railway/cli
-
-      - name: Deploy to Railway
-        run: railway up
-        env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-
   # ─── Notify ────────────────────────────────────────────────────────────────
   notify:
     name: Notify
-    needs: [deploy-frontend, deploy-backend]
+    needs: [deploy-frontend]
     runs-on: ubuntu-latest
     if: always() && github.event_name == 'push' && github.ref == 'refs/heads/main'
 
@@ -174,27 +155,24 @@ jobs:
       - name: Determine overall status
         id: status
         run: |
-          if [[ "${{ needs.deploy-frontend.result }}" == "success" && "${{ needs.deploy-backend.result }}" == "success" ]]; then
+          if [[ "${{ needs.deploy-frontend.result }}" == "success" ]]; then
             echo "status=success" >> "$GITHUB_OUTPUT"
             echo "emoji=✅" >> "$GITHUB_OUTPUT"
-            echo "message=All deployments succeeded" >> "$GITHUB_OUTPUT"
+            echo "message=Frontend deployment succeeded" >> "$GITHUB_OUTPUT"
           else
             echo "status=failure" >> "$GITHUB_OUTPUT"
             echo "emoji=❌" >> "$GITHUB_OUTPUT"
-            echo "message=One or more deployments failed" >> "$GITHUB_OUTPUT"
+            echo "message=Frontend deployment failed" >> "$GITHUB_OUTPUT"
           fi
 
-      # Discord notification (uncomment and add DISCORD_WEBHOOK_URL secret)
       - name: Notify Discord
         if: always()
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL }}
         run: |
           FRONTEND_RESULT="${{ needs.deploy-frontend.result }}"
-          BACKEND_RESULT="${{ needs.deploy-backend.result }}"
           FE_ICON=$([[ "$FRONTEND_RESULT" == "success" ]] && echo "✅" || echo "❌")
-          BE_ICON=$([[ "$BACKEND_RESULT" == "success" ]] && echo "✅" || echo "❌")
 
           curl -H "Content-Type: application/json" \
-            -d "{\"content\": \"${{ steps.status.outputs.emoji }} **Snakes & Ladders CI/CD**\n**Branch:** \`${{ github.ref_name }}\`\n**Commit:** \`${{ github.sha }}\` by ${{ github.actor }}\n**Status:** ${{ steps.status.outputs.message }}\n${FE_ICON} **Frontend (Vercel):** ${FRONTEND_RESULT} — ${{ needs.deploy-frontend.outputs.deploy_url || 'N/A' }}\n${BE_ICON} **Backend (Railway):** ${BACKEND_RESULT}\"}" \
+            -d "{\"content\": \"${{ steps.status.outputs.emoji }} **Snakes & Ladders CI/CD**\n**Branch:** \`${{ github.ref_name }}\`\n**Commit:** \`${{ github.sha }}\` by ${{ github.actor }}\n**Status:** ${{ steps.status.outputs.message }}\n${FE_ICON} **Frontend (Vercel):** ${FRONTEND_RESULT} — ${{ needs.deploy-frontend.outputs.deploy_url || 'N/A' }} \"}" \
             $DISCORD_WEBHOOK
