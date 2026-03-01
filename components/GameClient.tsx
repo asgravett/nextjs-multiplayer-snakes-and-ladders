@@ -146,8 +146,8 @@ export default function GameClient({
 
   if (!gameState) {
     return (
-      <div className="flex items-center justify-center h-[600px]">
-        <p className="text-gray-500 text-xl">Connecting...</p>
+      <div className="flex items-center justify-center h-150">
+        <p className="text-slate-500 text-xl">Connecting...</p>
       </div>
     );
   }
@@ -182,25 +182,29 @@ export default function GameClient({
         {/* Controls sidebar — stacks below on mobile, sits right in landscape */}
         <div className="w-full landscape:w-72 xl:w-80 flex flex-col gap-2 landscape:gap-4 shrink-0">
           {/* Error Message — reserved space */}
-          <div className="min-h-0">
+          <div className="min-h-0" role="alert">
             {error && <ErrorMessage message={error} variant="error" />}
           </div>
 
           {/* Roll Message — always reserves its height to prevent reflow */}
-          <div className="min-h-10 landscape:min-h-12">
+          <div
+            className="min-h-10 landscape:min-h-12"
+            aria-live="polite"
+            aria-atomic="true"
+          >
             {rollMessage ? (
               <ErrorMessage message={rollMessage} variant="info" icon="🎲" />
             ) : (
-              <div aria-hidden className="h-10 landscape:h-12" />
+              <div aria-hidden="true" className="h-10 landscape:h-12" />
             )}
           </div>
 
           {/* Turn Indicator — always reserves its height to prevent reflow */}
-          <div className="min-h-[52px]">
+          <div className="min-h-13" aria-live="polite" aria-atomic="true">
             {!gameState.winner ? (
-              <div className="bg-gray-50 border-2 border-gray-200 text-gray-700 px-4 py-3 rounded-lg text-center font-semibold">
+              <div className="bg-white/4 border border-white/8 text-slate-300 px-4 py-3 rounded-xl text-center font-semibold">
                 {isMyTurn ? (
-                  <span className="text-blue-600">
+                  <span className="text-cyan-400">
                     🎯 Your turn!{' '}
                     {animationState?.isAnimating
                       ? 'Moving...'
@@ -209,14 +213,14 @@ export default function GameClient({
                 ) : (
                   <span>
                     ⏳ Waiting for{' '}
-                    <span className="font-bold text-blue-600">
+                    <span className="font-bold text-cyan-400">
                       {gameState.players[gameState.currentTurn!]?.name}
                     </span>
                   </span>
                 )}
               </div>
             ) : (
-              <div className="bg-green-50 border-2 border-green-200 text-green-700 px-4 py-3 rounded-lg text-center font-semibold">
+              <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 px-4 py-3 rounded-xl text-center font-semibold">
                 🎉 {gameState.players[gameState.winner]?.name} Wins!
               </div>
             )}

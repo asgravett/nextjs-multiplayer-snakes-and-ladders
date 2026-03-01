@@ -12,14 +12,19 @@ export default function DiceRoller({
       <button
         onClick={onRoll}
         disabled={disabled}
-        className={`px-6 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-400 transition-colors ${
-          disabled
-            ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
-            : 'bg-blue-600 text-white hover:bg-blue-700'
-        }`}
+        className={`
+          w-full px-8 py-4 rounded-xl font-bold text-base tracking-wide
+          transition-all duration-200 ease-out
+          focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0b1120]
+          ${
+            disabled
+              ? 'bg-white/5 text-slate-600 cursor-not-allowed border border-white/6'
+              : 'bg-linear-to-r from-cyan-500 to-cyan-400 text-gray-950 shadow-lg shadow-cyan-500/25 hover:shadow-cyan-400/40 hover:from-cyan-400 hover:to-cyan-300 active:scale-[0.97] animate-pulse-glow'
+          }
+        `}
         aria-label="Roll dice"
       >
-        Roll Dice 🎲
+        🎲 Roll Dice
       </button>
     </div>
   );

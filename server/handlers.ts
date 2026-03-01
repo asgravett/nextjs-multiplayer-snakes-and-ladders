@@ -60,8 +60,8 @@ export const createHandlers = (io: TypedServer) => {
     io.emit('roomsList', await roomManager.getRoomsInfo());
   };
 
-  // Maximum total rooms to prevent memory exhaustion
-  const MAX_ROOMS = 50;
+  // Maximum total rooms to prevent memory exhaustion (env-configurable)
+  const MAX_ROOMS = Number(process.env.MAX_ROOMS) || 250;
 
   // Simple per-socket rate limiter: maxCalls allowed per windowMs
   const makeRateLimiter = (maxCalls: number, windowMs: number) => {

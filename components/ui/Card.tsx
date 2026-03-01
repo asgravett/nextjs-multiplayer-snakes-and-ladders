@@ -11,11 +11,13 @@ interface CardProps extends HTMLAttributes<HTMLDivElement> {
 }
 
 const variantStyles: Record<CardVariant, string> = {
-  default: 'bg-white shadow-lg',
-  elevated: 'bg-white shadow-xl',
-  outlined: 'bg-white border-2 border-gray-200',
+  default:
+    'bg-white/4 backdrop-blur-xl border border-white/8 shadow-xl shadow-black/20',
+  elevated:
+    'bg-white/6 backdrop-blur-2xl border border-white/10 shadow-2xl shadow-black/30',
+  outlined: 'bg-transparent border border-white/10',
   gradient:
-    'bg-linear-to-r from-gray-50 to-gray-100 border-2 border-gray-200',
+    'bg-linear-to-br from-white/6 to-white/2 backdrop-blur-xl border border-white/8 shadow-xl shadow-black/20',
 };
 
 const paddingStyles: Record<'none' | 'sm' | 'md' | 'lg', string> = {
@@ -44,7 +46,7 @@ const Card = forwardRef<HTMLDivElement, CardProps>(
           rounded-2xl
           ${variantStyles[variant]}
           ${paddingStyles[padding]}
-          ${hoverable ? 'transition-all duration-200 hover:shadow-xl hover:scale-[1.02] cursor-pointer' : ''}
+          ${hoverable ? 'transition-all duration-300 hover:bg-white/8 hover:border-white/15 hover:shadow-2xl cursor-pointer' : ''}
           ${className}
         `}
         {...props}
@@ -75,18 +77,18 @@ function CardHeader({
 }: CardHeaderProps) {
   return (
     <div
-      className={`flex items-center justify-between mb-4 ${className}`}
+      className={`flex items-center justify-between mb-5 ${className}`}
       {...props}
     >
       <div className="flex items-center gap-3">
         {icon && (
-          <div className="w-12 h-12 bg-linear-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white">
+          <div className="w-11 h-11 rounded-xl bg-linear-to-br from-cyan-500/20 to-violet-500/20 border border-white/10 flex items-center justify-center text-lg">
             {icon}
           </div>
         )}
         <div>
-          <h3 className="text-xl font-bold text-gray-800">{title}</h3>
-          {subtitle && <p className="text-sm text-gray-600">{subtitle}</p>}
+          <h3 className="text-lg font-bold text-slate-100">{title}</h3>
+          {subtitle && <p className="text-sm text-slate-400">{subtitle}</p>}
         </div>
       </div>
       {action && <div>{action}</div>}
@@ -111,7 +113,7 @@ interface CardFooterProps extends HTMLAttributes<HTMLDivElement> {}
 function CardFooter({ className = '', children, ...props }: CardFooterProps) {
   return (
     <div
-      className={`mt-4 pt-4 border-t border-gray-200 ${className}`}
+      className={`mt-5 pt-5 border-t border-white/8 ${className}`}
       {...props}
     >
       {children}

@@ -201,6 +201,16 @@ export class RoomManager {
       room.gameState.currentTurn = newSocketId;
     }
 
+    // If the game is active but currentTurn is null (e.g. all players were
+    // temporarily disconnected), restore it to the first active player.
+    if (
+      room.gameState.gameStarted &&
+      !room.gameState.winner &&
+      room.gameState.currentTurn === null
+    ) {
+      room.gameState.currentTurn = this.getNextTurn(room.gameState);
+    }
+
     await this.save(room);
   }
 

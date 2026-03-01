@@ -8,9 +8,9 @@ import GameErrorBoundary from '@/components/GameErrorBoundary';
 import ConnectionError from '@/components/ConnectionError';
 import { LoadingSpinner, Card, CardContent } from '@/components/ui';
 import { useRouter } from 'next/navigation';
+import GameHeader from '@/components/GameHeader';
 import WinCelebration from '@/components/WinCelebration';
 import LoseCelebration from '@/components/LoseCelebration';
-import GameHeader from '@/components/GameHeader';
 
 export default function GamePage() {
   const router = useRouter();
@@ -32,6 +32,7 @@ export default function GamePage() {
     error,
     myId,
     currentRoomId,
+    currentRoomName,
     availableRooms,
     isHost,
     isConnected,
@@ -76,7 +77,7 @@ export default function GamePage() {
   // Not connected yet or reconnecting
   if (!myId) {
     return (
-      <div className="min-h-screen bg-linear-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center">
         <Card variant="elevated" className="p-8">
           <CardContent className="flex flex-col items-center gap-4">
             <LoadingSpinner
@@ -86,7 +87,7 @@ export default function GamePage() {
               }
             />
             {isReconnecting && (
-              <p className="text-amber-600 text-sm">
+              <p className="text-amber-400 text-sm">
                 Connection lost. Attempting to reconnect...
               </p>
             )}
@@ -99,18 +100,18 @@ export default function GamePage() {
   // In lobby (not in a room)
   if (!currentRoomId) {
     return (
-      <div className="min-h-screen bg-linear-to-br from-blue-50 to-indigo-100">
+      <div className="min-h-screen">
         <GameHeader
           title="🎲 Snakes and Ladders 🐍"
-          subtitle="Multiplayer Board Game"
           actions={
             <div className="flex items-center gap-2">
               <div
                 className={`w-2 h-2 rounded-full ${
-                  isConnected ? 'bg-green-500' : 'bg-red-500'
+                  isConnected ? 'bg-emerald-400' : 'bg-rose-400'
                 }`}
+                aria-hidden="true"
               />
-              <span className="text-sm text-gray-500">
+              <span className="text-sm text-slate-500">
                 {isConnected ? 'Connected' : 'Disconnected'}
               </span>
             </div>
@@ -132,7 +133,7 @@ export default function GamePage() {
   if (!gameState?.gameStarted) {
     if (!gameState) {
       return (
-        <div className="min-h-screen bg-linear-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+        <div className="min-h-screen flex items-center justify-center">
           <Card variant="elevated" className="p-8">
             <CardContent className="flex flex-col items-center gap-4">
               <LoadingSpinner size="lg" label="Joining room..." />
@@ -142,8 +143,11 @@ export default function GamePage() {
       );
     }
     return (
-      <div className="min-h-screen bg-linear-to-br from-blue-50 to-indigo-100">
-        <GameHeader title="Waiting Room" subtitle={`Room: ${currentRoomId}`} />
+      <div className="min-h-screen">
+        <GameHeader
+          title="Waiting Room"
+          subtitle={`Room: ${currentRoomName}`}
+        />
         <div className="py-8 px-4">
           <WaitingRoom
             gameState={gameState}
@@ -159,15 +163,14 @@ export default function GamePage() {
 
   // Game in progress - wrap in GameErrorBoundary
   return (
-    <div className="h-dvh overflow-hidden bg-linear-to-br from-blue-50 to-indigo-100">
+    <div className="h-dvh overflow-hidden">
       <GameHeader
         title="🎲 Snakes and Ladders 🐍"
         subtitle={isMyTurn ? 'Your turn!' : 'Waiting for opponent...'}
-        // showBackButton={false}
         actions={
           <button
             onClick={handleLeaveGame}
-            className="text-sm text-red-600 hover:text-red-800 font-medium transition-colors"
+            className="text-sm text-rose-400 hover:text-rose-300 font-medium transition-colors"
           >
             Leave Game
           </button>
@@ -175,7 +178,7 @@ export default function GamePage() {
       />
       {/* Reconnecting banner */}
       {isReconnecting && (
-        <div className="fixed top-0 left-0 right-0 bg-amber-500 text-white text-center py-2 px-4 z-50 pt-safe">
+        <div className="fixed top-0 left-0 right-0 bg-amber-500/90 backdrop-blur-sm text-white text-center py-2 px-4 z-50 pt-safe">
           <span className="animate-pulse">
             ⚠️ Connection lost. Reconnecting...
           </span>

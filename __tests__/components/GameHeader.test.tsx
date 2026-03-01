@@ -46,22 +46,22 @@ describe('GameHeader', () => {
   describe('back button', () => {
     test('should render the home back button by default', () => {
       render(<GameHeader />);
-      expect(screen.getByTitle('Home')).toBeInTheDocument();
+      expect(screen.getByLabelText('Go home')).toBeInTheDocument();
     });
 
     test('should hide the back button when showBackButton is false', () => {
       render(<GameHeader showBackButton={false} />);
-      expect(screen.queryByTitle('Home')).not.toBeInTheDocument();
+      expect(screen.queryByLabelText('Go home')).not.toBeInTheDocument();
     });
 
     test('should show the back button when showBackButton is explicitly true', () => {
       render(<GameHeader showBackButton={true} />);
-      expect(screen.getByTitle('Home')).toBeInTheDocument();
+      expect(screen.getByLabelText('Go home')).toBeInTheDocument();
     });
 
     test('back button should link to the home route', () => {
       render(<GameHeader />);
-      expect(screen.getByTitle('Home')).toHaveAttribute('href', '/');
+      expect(screen.getByLabelText('Go home')).toHaveAttribute('href', '/');
     });
   });
 

@@ -560,6 +560,60 @@ describe('RoomManager - reconnectPlayer', () => {
     expect((await rm.get('room_1'))!.gameState.currentTurn).toBe('socket-2');
   });
 
+  test('should restore currentTurn when game is active but turn was null (all players disconnected)', async () => {
+    const rm = makeManager();
+    await rm.create('room_1', 'Test', 'socket-1');
+    await rm.addPlayer('room_1', 'socket-1', 'Alice', 'client-1');
+    await rm.addPlayer('room_1', 'socket-2', 'Bob', 'client-2');
+
+    // Simulate game start then all players disconnecting (currentTurn → null)
+    const room = (await rm.get('room_1'))!;
+    room.gameState.gameStarted = true;
+    room.gameState.currentTurn = null;
+    room.gameState.players['socket-1'].disconnected = true;
+    room.gameState.players['socket-2'].disconnected = true;
+    await rm.save(room);
+
+    // Alice reconnects — currentTurn should be restored to her
+    await rm.reconnectPlayer('room_1', 'socket-1', 'socket-new');
+
+    const updated = (await rm.get('room_1'))!;
+    expect(updated.gameState.currentTurn).toBe('socket-new');
+  });
+
+  test('should not restore currentTurn when game has a winner', async () => {
+    const rm = makeManager();
+    await rm.create('room_1', 'Test', 'socket-1');
+    await rm.addPlayer('room_1', 'socket-1', 'Alice', 'client-1');
+
+    const room = (await rm.get('room_1'))!;
+    room.gameState.gameStarted = true;
+    room.gameState.currentTurn = null;
+    room.gameState.winner = 'socket-1';
+    room.gameState.players['socket-1'].disconnected = true;
+    await rm.save(room);
+
+    await rm.reconnectPlayer('room_1', 'socket-1', 'socket-new');
+
+    expect((await rm.get('room_1'))!.gameState.currentTurn).toBeNull();
+  });
+
+  test('should not restore currentTurn when game has not started', async () => {
+    const rm = makeManager();
+    await rm.create('room_1', 'Test', 'socket-1');
+    await rm.addPlayer('room_1', 'socket-1', 'Alice', 'client-1');
+
+    const room = (await rm.get('room_1'))!;
+    room.gameState.gameStarted = false;
+    room.gameState.currentTurn = null;
+    room.gameState.players['socket-1'].disconnected = true;
+    await rm.save(room);
+
+    await rm.reconnectPlayer('room_1', 'socket-1', 'socket-new');
+
+    expect((await rm.get('room_1'))!.gameState.currentTurn).toBeNull();
+  });
+
   test('should not throw when the room does not exist', async () => {
     const rm = makeManager();
     await expect(

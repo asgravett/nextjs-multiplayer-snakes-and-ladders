@@ -46,22 +46,26 @@ export default function Lobby({
   );
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
+    <div className="max-w-lg mx-auto space-y-5">
       {/* Player Name Input */}
       <Card variant="elevated">
         <CardHeader
           title="Welcome!"
           subtitle="Enter your name to get started"
-          icon={<span className="text-2xl">🎮</span>}
+          icon={<span className="text-lg">🎮</span>}
         />
         <CardContent>
+          <label htmlFor="lobby-player-name" className="sr-only">
+            Your name
+          </label>
           <input
+            id="lobby-player-name"
             type="text"
             value={playerName}
             onChange={(e) => setPlayerName(e.target.value)}
             placeholder="Your name"
             maxLength={20}
-            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors text-lg text-gray-800"
+            className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-slate-100 placeholder-slate-500 focus:border-cyan-500/50 focus:outline-none focus:ring-1 focus:ring-cyan-500/30 transition-all text-base"
           />
         </CardContent>
       </Card>
@@ -74,16 +78,20 @@ export default function Lobby({
         <CardHeader
           title="Create a Room"
           subtitle="Start a new game"
-          icon={<span className="text-2xl">🏠</span>}
+          icon={<span className="text-lg">🏠</span>}
         />
         <CardContent className="space-y-4">
+          <label htmlFor="lobby-room-name" className="sr-only">
+            Room name
+          </label>
           <input
+            id="lobby-room-name"
             type="text"
             value={roomName}
             onChange={(e) => setRoomName(e.target.value)}
             placeholder="Room name"
             maxLength={50}
-            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors text-gray-800"
+            className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-slate-100 placeholder-slate-500 focus:border-cyan-500/50 focus:outline-none focus:ring-1 focus:ring-cyan-500/30 transition-all"
           />
           <Button
             onClick={handleCreateRoom}
@@ -103,12 +111,12 @@ export default function Lobby({
         <CardHeader
           title="Join a Room"
           subtitle={`${availableRooms.length} room${availableRooms.length !== 1 ? 's' : ''} available`}
-          icon={<span className="text-2xl">🚪</span>}
+          icon={<span className="text-lg">🚪</span>}
         />
         <CardContent>
           {availableRooms.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
-              <span className="text-4xl mb-2 block">🏜️</span>
+            <div className="text-center py-8 text-slate-500">
+              <span className="text-4xl mb-3 block opacity-60">🏜️</span>
               <p>No rooms available. Create one!</p>
             </div>
           ) : (

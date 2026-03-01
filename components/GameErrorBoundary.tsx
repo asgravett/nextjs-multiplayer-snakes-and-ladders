@@ -59,18 +59,18 @@ class GameErrorBoundary extends Component<
             <div className="text-5xl">🎮💥</div>
 
             <div>
-              <h2 className="text-xl font-bold text-gray-800 mb-2">
+              <h2 className="text-xl font-bold text-slate-100 mb-2">
                 Game Error
               </h2>
-              <p className="text-gray-600">
+              <p className="text-slate-400">
                 Something went wrong with the game. You can try to continue or
                 leave the room.
               </p>
             </div>
 
             {process.env.NODE_ENV === 'development' && error && (
-              <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-left">
-                <p className="text-xs font-mono text-red-600 break-all">
+              <div className="bg-rose-500/10 border border-rose-500/20 rounded-xl p-3 text-left">
+                <p className="text-xs font-mono text-rose-300 break-all">
                   {error.message}
                 </p>
               </div>

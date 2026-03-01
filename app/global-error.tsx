@@ -20,7 +20,7 @@ export default function GlobalError({ error, reset }: GlobalErrorProps) {
   return (
     <html>
       <body>
-        <div className="min-h-screen bg-linear-to-br from-red-50 to-orange-50 flex items-center justify-center p-4">
+        <div className="min-h-screen bg-[#0b1120] text-[#f1f5f9] flex items-center justify-center p-4">
           <Card variant="elevated" className="max-w-md w-full">
             <CardContent className="text-center space-y-6">
               {/* Error Icon */}
@@ -28,10 +28,10 @@ export default function GlobalError({ error, reset }: GlobalErrorProps) {
 
               {/* Title */}
               <div>
-                <h1 className="text-2xl font-bold text-gray-800 mb-2">
+                <h1 className="text-2xl font-bold text-slate-100 mb-2">
                   Something Went Wrong
                 </h1>
-                <p className="text-gray-500">
+                <p className="text-slate-400">
                   The ladder broke! We&apos;re sorry, but something unexpected
                   happened.
                 </p>
@@ -39,15 +39,15 @@ export default function GlobalError({ error, reset }: GlobalErrorProps) {
 
               {/* Error details in dev mode */}
               {process.env.NODE_ENV === 'development' && (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-left">
-                  <p className="text-sm font-semibold text-red-700 mb-2">
+                <div className="bg-rose-500/10 border border-rose-500/20 rounded-xl p-4 text-left">
+                  <p className="text-sm font-semibold text-rose-400 mb-2">
                     Error Details:
                   </p>
-                  <p className="text-sm text-red-600 font-mono break-all">
+                  <p className="text-sm text-rose-300 font-mono break-all">
                     {error.message}
                   </p>
                   {error.digest && (
-                    <p className="text-xs text-red-400 mt-2">
+                    <p className="text-xs text-rose-400/60 mt-2">
                       Digest: {error.digest}
                     </p>
                   )}

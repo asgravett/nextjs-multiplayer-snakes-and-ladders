@@ -204,7 +204,8 @@ export default function CanvasGameBoard({
     ],
   );
 
-  // Animation loop
+  // Animation loop — only runs continuously during active animations;
+  // otherwise draws a single frame to save CPU/battery.
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -212,33 +213,48 @@ export default function CanvasGameBoard({
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const animate = () => {
+    if (animationState?.isAnimating) {
+      const animate = () => {
+        drawBoard(ctx);
+        animationRef.current = requestAnimationFrame(animate);
+      };
+      animate();
+      return () => {
+        if (animationRef.current) {
+          cancelAnimationFrame(animationRef.current);
+        }
+      };
+    } else {
+      // Single draw when idle
       drawBoard(ctx);
-      animationRef.current = requestAnimationFrame(animate);
-    };
+    }
+  }, [drawBoard, animationState?.isAnimating]);
 
-    animate();
-
-    return () => {
-      if (animationRef.current) {
-        cancelAnimationFrame(animationRef.current);
-      }
-    };
-  }, [drawBoard]);
-
-  // Load board image
+  // Load board image (prefer WebP, fall back to PNG)
   useEffect(() => {
     const img = new Image();
-    img.src = '/assets/board.png';
+    img.src = '/assets/board.webp';
     img.onload = () => {
       boardImageRef.current = img;
       imageLoadedRef.current = true;
     };
     img.onerror = () => {
-      console.warn('Board image not found, using fallback grid');
-      imageLoadedRef.current = false;
+      // WebP not supported or missing — try PNG fallback
+      const fallback = new Image();
+      fallback.src = '/assets/board.png';
+      fallback.onload = () => {
+        boardImageRef.current = fallback;
+        imageLoadedRef.current = true;
+      };
+      fallback.onerror = () => {
+        console.warn('Board image not found, using fallback grid');
+        imageLoadedRef.current = false;
+      };
     };
   }, []);
+
+  // Build a screen-reader-friendly description of player positions
+  const boardDescription = `Game board with ${players.length} player${players.length !== 1 ? 's' : ''}. ${players.map((p) => `${p.name} is on square ${p.position}`).join('. ')}`;
 
   return (
     <div
@@ -250,6 +266,8 @@ export default function CanvasGameBoard({
         ref={canvasRef}
         width={canvasSize}
         height={canvasSize}
+        role="img"
+        aria-label={boardDescription}
         className="border-4 border-gray-800 rounded-lg shadow-xl"
         style={{
           width: canvasSize,

@@ -1,31 +1,173 @@
 @import 'tailwindcss';
 
+/* ── Design tokens ─────────────────────────────────────── */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Dark palette */
+  --bg-base: #0b1120;
+  --bg-surface: #111827;
+  --bg-elevated: #1e293b;
+  --bg-glass: rgba(255, 255, 255, 0.04);
+  --bg-glass-hover: rgba(255, 255, 255, 0.08);
+
+  /* Accent colours */
+  --accent: #22d3ee; /* cyan-400 */
+  --accent-dim: #0891b2; /* cyan-600 */
+  --accent-glow: rgba(34, 211, 238, 0.25);
+  --accent-secondary: #a78bfa; /* violet-400 */
+  --accent-secondary-dim: #7c3aed; /* violet-600 */
+
+  /* Text */
+  --text-primary: #f1f5f9; /* slate-100 */
+  --text-secondary: #94a3b8; /* slate-400 */
+  --text-muted: #64748b; /* slate-500 */
+
+  /* Borders */
+  --border: rgba(255, 255, 255, 0.08);
+  --border-bright: rgba(255, 255, 255, 0.15);
+
+  /* Statuses */
+  --success: #34d399; /* emerald-400 */
+  --warning: #fbbf24; /* amber-400 */
+  --danger: #fb7185; /* rose-400 */
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-background: var(--bg-base);
+  --color-foreground: var(--text-primary);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+
+  --color-accent: var(--accent);
+  --color-accent-dim: var(--accent-dim);
+  --color-accent-secondary: var(--accent-secondary);
+  --color-surface: var(--bg-surface);
+  --color-elevated: var(--bg-elevated);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-muted: var(--text-muted);
+  --color-border: var(--border);
+  --color-border-bright: var(--border-bright);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+/* ── Base ──────────────────────────────────────────────── */
+body {
+  background: var(--bg-base);
+  color: var(--text-primary);
+  font-family:
+    var(--font-sans),
+    system-ui,
+    -apple-system,
+    sans-serif;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* ── Glassmorphism ─────────────────────────────────────── */
+.glass {
+  background: var(--bg-glass);
+  backdrop-filter: blur(16px) saturate(1.8);
+  -webkit-backdrop-filter: blur(16px) saturate(1.8);
+  border: 1px solid var(--border);
+}
+
+.glass-bright {
+  background: rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(20px) saturate(2);
+  -webkit-backdrop-filter: blur(20px) saturate(2);
+  border: 1px solid var(--border-bright);
+}
+
+/* ── Glow effects ──────────────────────────────────────── */
+.glow-accent {
+  box-shadow:
+    0 0 20px var(--accent-glow),
+    0 0 60px rgba(34, 211, 238, 0.1);
+}
+
+.glow-accent-sm {
+  box-shadow: 0 0 10px var(--accent-glow);
+}
+
+.glow-text {
+  text-shadow: 0 0 20px var(--accent-glow);
+}
+
+/* ── Animations ────────────────────────────────────────── */
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-6px);
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@keyframes pulse-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 15px var(--accent-glow);
+  }
+  50% {
+    box-shadow:
+      0 0 30px var(--accent-glow),
+      0 0 60px rgba(34, 211, 238, 0.15);
+  }
 }
 
-/* Utility classes */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes gradient-shift {
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+.animate-pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+.animate-shimmer {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.05) 50%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 2s infinite;
+}
+.animate-gradient {
+  background-size: 200% 200%;
+  animation: gradient-shift 6s ease infinite;
+}
+
+/* ── Safe-area & touch utilities ───────────────────────── */
 .pt-safe {
   padding-top: env(safe-area-inset-top, 0px);
 }
@@ -41,4 +183,16 @@ body {
 .touch-target {
   min-width: 44px;
   min-height: 44px;
+}
+
+/* ── Focus ring override ───────────────────────────────── */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ── Selection ─────────────────────────────────────────── */
+::selection {
+  background: rgba(34, 211, 238, 0.3);
+  color: #fff;
 }

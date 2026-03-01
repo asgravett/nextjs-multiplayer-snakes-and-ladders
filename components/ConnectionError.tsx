@@ -56,20 +56,20 @@ export default function ConnectionError({
   };
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-gray-50 to-gray-100 flex items-center justify-center p-4">
+    <div className="min-h-screen flex items-center justify-center p-4">
       <Card variant="elevated" className="max-w-md w-full">
         <CardContent className="text-center space-y-6">
           <div className="text-6xl">{getErrorIcon()}</div>
 
           <div>
-            <h1 className="text-2xl font-bold text-gray-800 mb-2">
+            <h1 className="text-2xl font-bold text-slate-100 mb-2">
               {getErrorTitle()}
             </h1>
-            <p className="text-gray-600">{getErrorDescription()}</p>
+            <p className="text-slate-400">{getErrorDescription()}</p>
           </div>
 
           {error.retryCount > 0 && (
-            <p className="text-sm text-amber-600 bg-amber-50 px-3 py-2 rounded-lg">
+            <p className="text-sm text-amber-400 bg-amber-500/10 px-3 py-2 rounded-xl border border-amber-500/20">
               Retry attempt {error.retryCount}/3
             </p>
           )}
@@ -90,7 +90,7 @@ export default function ConnectionError({
           </div>
 
           {error.retryCount >= 3 && (
-            <p className="text-sm text-red-600">
+            <p className="text-sm text-rose-400">
               Maximum retry attempts reached. Please try again later or contact
               support.
             </p>

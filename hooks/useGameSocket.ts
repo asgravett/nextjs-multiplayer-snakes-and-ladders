@@ -54,6 +54,7 @@ export function useGameSocket(errorHandler?: SocketErrorHandler) {
   const [error, setError] = useState<string | null>(null);
   const [myId, setMyId] = useState<string | null>(null);
   const [currentRoomId, setCurrentRoomId] = useState<string | null>(null);
+  const [currentRoomName, setCurrentRoomName] = useState<string | null>(null);
   const [availableRooms, setAvailableRooms] = useState<RoomInfo[]>([]);
   const [isHost, setIsHost] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
@@ -156,6 +157,7 @@ export function useGameSocket(errorHandler?: SocketErrorHandler) {
       setCurrentRoomId(data.roomId);
       setIsHost(data.room?.host === socket.id);
       setGameState(data.room?.gameState ?? null);
+      setCurrentRoomName(data.room?.name ?? null);
       // Persist so we can attempt a rejoin after an unexpected disconnect
       setRejoinRoomId(data.roomId);
     });
@@ -282,6 +284,7 @@ export function useGameSocket(errorHandler?: SocketErrorHandler) {
     if (currentRoomId) {
       socketRef.current?.emit('leaveRoom', { roomId: currentRoomId });
       setCurrentRoomId(null);
+      setCurrentRoomName(null);
       setGameState(null);
       setIsHost(false);
       setLastRollInfo(null);
@@ -307,6 +310,7 @@ export function useGameSocket(errorHandler?: SocketErrorHandler) {
     error,
     myId,
     currentRoomId,
+    currentRoomName,
     availableRooms,
     isHost,
     isConnected,

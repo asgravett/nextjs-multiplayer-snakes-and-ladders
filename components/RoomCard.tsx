@@ -12,10 +12,10 @@ interface RoomCardProps {
 
 export default function RoomCard({ room, onJoin, disabled }: RoomCardProps) {
   return (
-    <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border-2 border-gray-200 hover:border-blue-300 transition-colors">
+    <div className="flex items-center justify-between p-4 rounded-xl bg-white/4 border border-white/8 hover:bg-white/7 hover:border-cyan-500/20 transition-all duration-200">
       <div>
-        <h4 className="font-semibold text-gray-800">{room.name}</h4>
-        <p className="text-sm text-gray-500">
+        <h4 className="font-semibold text-slate-100">{room.name}</h4>
+        <p className="text-sm text-slate-500">
           {room.playerCount}/{room.maxPlayers} players
         </p>
       </div>

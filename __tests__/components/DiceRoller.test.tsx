@@ -47,6 +47,6 @@ describe('DiceRoller', () => {
   test('should apply active styling class when enabled', () => {
     render(<DiceRoller onRoll={jest.fn()} disabled={false} />);
     const button = screen.getByRole('button', { name: /roll dice/i });
-    expect(button.className).toContain('bg-blue-600');
+    expect(button.className).toContain('bg-linear-to-r');
   });
 });

@@ -18,27 +18,27 @@ const variantStyles: Record<
   { bg: string; border: string; text: string; defaultIcon: string }
 > = {
   error: {
-    bg: 'bg-red-50',
-    border: 'border-red-200',
-    text: 'text-red-700',
+    bg: 'bg-rose-500/10',
+    border: 'border-rose-500/20',
+    text: 'text-rose-300',
     defaultIcon: '⚠️',
   },
   warning: {
-    bg: 'bg-yellow-50',
-    border: 'border-yellow-200',
-    text: 'text-yellow-700',
+    bg: 'bg-amber-500/10',
+    border: 'border-amber-500/20',
+    text: 'text-amber-300',
     defaultIcon: '⚡',
   },
   info: {
-    bg: 'bg-blue-50',
-    border: 'border-blue-200',
-    text: 'text-blue-700',
+    bg: 'bg-cyan-500/10',
+    border: 'border-cyan-500/20',
+    text: 'text-cyan-300',
     defaultIcon: 'ℹ️',
   },
   success: {
-    bg: 'bg-green-50',
-    border: 'border-green-200',
-    text: 'text-green-700',
+    bg: 'bg-emerald-500/10',
+    border: 'border-emerald-500/20',
+    text: 'text-emerald-300',
     defaultIcon: '✓',
   },
 };
